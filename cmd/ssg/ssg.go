@@ -20,17 +20,21 @@ const (
 	BadArgument
 )
 
-func run(c *cli.Context) error {
-	config, err := generator.ParseConfigFile(c.String("config"))
-	if err != nil {
-		return cli.Exit(fmt.Sprintf("parsing config %q failed: %s", c.String("config"), err.Error()), BadArgument)
-	}
+func flagOverride(config *generator.Config, c *cli.Context) {
 	if c.String("content") != "" {
 		config.ContentDir = c.String("content")
 	}
 	if c.String("static") != "" {
 		config.StaticDir = c.String("static")
 	}
+}
+
+func run(c *cli.Context) error {
+	config, err := generator.ParseConfigFile(c.String("config"))
+	if err != nil {
+		return cli.Exit(fmt.Sprintf("parsing config %q failed: %s", c.String("config"), err.Error()), BadArgument)
+	}
+	flagOverride(config, c)
 
 	sourceFS := os.DirFS(config.ContentDir)
 	_, err = fs.Stat(sourceFS, ".")
