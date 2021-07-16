@@ -37,33 +37,20 @@ func run(c *cli.Context) error {
 	flagOverride(config, c)
 
 	sourceFS := os.DirFS(config.ContentDir)
-	_, err = fs.Stat(sourceFS, ".")
-	if err != nil {
-		return cli.Exit(fmt.Sprintf("bad source dir %q: %s", config.ContentDir, err.Error()), BadArgument)
-	}
 
 	var staticFS fs.FS
 	if config.StaticDir != "" {
 		staticFS = os.DirFS(config.StaticDir)
-		_, err := fs.Stat(staticFS, ".")
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("bad static dir %q: %s", config.StaticDir, err.Error()), BadArgument)
-		}
 	}
 
 	slugifier := slug.NewSlugifier('-')
-	var templates *generator.Templates
+	var templateFS fs.FS
 	if config.TemplatesDir != "" {
-		templateFS := os.DirFS(config.TemplatesDir)
-		_, err := fs.Stat(templateFS, ".")
-		if err != nil {
-			return cli.Exit(fmt.Sprintf("bad templates dir %q: %s", config.TemplatesDir, err.Error()), BadArgument)
-		}
-		templates = generator.NewTemplates(config.Author, config.BaseURL, slugifier, templateFS)
+		templateFS = os.DirFS(config.TemplatesDir)
 	} else {
-		templateFS, _ := fs.Sub(generator.DefaultTemplateFS, "templates")
-		templates = generator.NewTemplates(config.Author, config.BaseURL, slugifier, templateFS)
+		templateFS, _ = fs.Sub(generator.DefaultTemplateFS, "templates")
 	}
+	templates := generator.NewTemplates(config.Author, config.BaseURL, slugifier, templateFS)
 
 	stor := generator.NewFileStorage(c.String("output"))
 	renderer := generator.NewRenderer(goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)), templates)
