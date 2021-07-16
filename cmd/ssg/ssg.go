@@ -52,9 +52,9 @@ func run(c *cli.Context) error {
 	}
 	templates := generator.NewTemplates(config.Author, config.BaseURL, slugifier, templateFS)
 
-	stor := generator.NewFileStorage(c.String("output"))
+	storage := generator.NewFileStorage(c.String("output"))
 	renderer := generator.NewRenderer(goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)), templates)
-	gen, err := generator.New(sourceFS, staticFS, stor, slugifier, renderer)
+	gen, err := generator.New(sourceFS, staticFS, storage, slugifier, renderer)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("instantiating generator failed: %s", err.Error()), InternalError)
 	}
