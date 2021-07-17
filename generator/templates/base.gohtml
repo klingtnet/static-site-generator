@@ -37,7 +37,7 @@
 <nav>
   <ul class="nobullets">
     {{ range $_, $entry := . }}
-    <li><a href='{{ absLink (replaceExtension $entry.Path ".html") }}'>{{ $entry.Name }}</a></li>
+    <li><a href='{{ absLink (replaceExtension $entry.Path ".html") }}'>{{ $entry.Title }}</a></li>
     {{ end }}
   </ul>
 </nav>

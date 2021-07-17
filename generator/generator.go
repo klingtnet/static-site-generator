@@ -72,9 +72,8 @@ type FrontMatter struct {
 
 // MenuEntry is an entry in the navigation menu.
 type MenuEntry struct {
-	// Name of the menu entry.
-	// TODO: Rename to title.
-	Name string
+	// Title of the menu entry.
+	Title string
 	// Path of the page file.
 	Path string
 }
