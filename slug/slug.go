@@ -1,3 +1,4 @@
+// Package slug provides functions for translating page titles into a representation that is safe to use in URLs.
 package slug
 
 import (

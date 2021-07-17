@@ -19,6 +19,7 @@ type FileStorage struct {
 	baseDir string
 }
 
+// NewFileStorage returns an initialized FileStorage.
 func NewFileStorage(baseDir string) *FileStorage {
 	return &FileStorage{baseDir}
 }

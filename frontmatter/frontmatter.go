@@ -1,3 +1,4 @@
+// Package frontmatter provides a parser for page metadata stored in markdown code blocks.
 package frontmatter
 
 import (

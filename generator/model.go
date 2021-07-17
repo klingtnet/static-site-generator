@@ -40,7 +40,7 @@ func (l *Library) PagesIn(dir string) []Page {
 type Page struct {
 	// Path of content file.
 	Path string
-	// FM contains page meta data from front matter.
+	// FM contains page meta data from front matter.dw
 	FM FrontMatter
 	// Markdown formatted content.
 	Markdown []byte

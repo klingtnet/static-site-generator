@@ -13,11 +13,13 @@ import (
 	"github.com/yuin/goldmark"
 )
 
+// Renderer renders markdown pages to HTML websites.
 type Renderer struct {
 	md        goldmark.Markdown
 	templates *Templates
 }
 
+// NewRenderer returns an instantiated renderer.
 func NewRenderer(md goldmark.Markdown, templates *Templates) *Renderer {
 	return &Renderer{
 		md:        md,
@@ -75,6 +77,7 @@ func defaultFuncMap(author, baseURL string, slugifier *slug.Slugifier) template.
 	}
 }
 
+// Page renders a single page.
 func (r *Renderer) Page(ctx context.Context, w io.Writer, library *Library, page Page) error {
 	buf := bytes.NewBuffer(nil)
 	err := r.md.Convert(page.Markdown, buf)
@@ -90,6 +93,7 @@ func (r *Renderer) Page(ctx context.Context, w io.Writer, library *Library, page
 	return r.templates.Page.ExecuteTemplate(w, "base.gohtml", data)
 }
 
+// List renders a list, or directory overview, page.
 func (r *Renderer) List(ctx context.Context, w io.Writer, library *Library, dir string) error {
 	data := TemplateData{
 		strings.Title(dir), "List of " + dir,

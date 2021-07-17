@@ -165,6 +165,7 @@ func (g *Generator) copyStaticFiles() error {
 	})
 }
 
+// TemplateData contains data used to render page templates.
 type TemplateData struct {
 	Title, Description string
 	Content            interface{}
@@ -236,6 +237,7 @@ func (g *Generator) render(ctx context.Context, library *Library) error {
 	return nil
 }
 
+// Run generates the website.
 func (g *Generator) Run(ctx context.Context) error {
 	library, err := initLibrary(ctx, g.sourceFS)
 	if err != nil {
@@ -254,6 +256,7 @@ func (g *Generator) Run(ctx context.Context) error {
 	return nil
 }
 
+// New returns a new Generator instance.
 func New(sourceFS, staticFS fs.FS, stor Storage, slugifier *slug.Slugifier, renderer *Renderer) *Generator {
 	if staticFS == nil {
 		staticFS = defaultStaticFS

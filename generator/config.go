@@ -8,11 +8,17 @@ import (
 	"strings"
 )
 
+// Config contains generator configuration values.
 type Config struct {
-	Author       string `json:"author"`
-	BaseURL      string `json:"base_url"`
-	ContentDir   string `json:"content_dir"`
-	StaticDir    string `json:"static_dir"`
+	// Author is the websites' author (required).
+	Author string `json:"author"`
+	// BaseURL is the base URL that is used when generating absolute/canoncical URLs.
+	BaseURL string `json:"base_url"`
+	// ContentDir is the path of a directory that contains the websites content (required).
+	ContentDir string `json:"content_dir"`
+	// StaticDir is the path of a directory that contains static files to include in the generated website.
+	StaticDir string `json:"static_dir"`
+	// TemplatesDir is the path of a directory that contains a set of custom templates used to render the website.
 	TemplatesDir string `json:"templates_dir"`
 }
 
@@ -21,6 +27,7 @@ var (
 	ErrContentDirUnset = fmt.Errorf("content dir is unset")
 )
 
+// Validate returns an error if the configuration is incomplete or invalid.
 func (c *Config) Validate() error {
 	if strings.TrimSpace(c.Author) == "" {
 		return ErrAuthorUnset
@@ -36,6 +43,7 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// ParseConfigFile instantiates a configuration from the given file.
 func ParseConfigFile(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
