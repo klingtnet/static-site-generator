@@ -70,15 +70,11 @@ func run(c *cli.Context) error {
 
 	storage := generator.NewFileStorage(c.String("output"))
 	renderer := generator.NewRenderer(goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)), templates)
-	gen, err := generator.New(resources.sourceFS, resources.staticFS, storage, slugifier, renderer)
-	if err != nil {
-		return cli.Exit(fmt.Sprintf("instantiating generator failed: %s", err.Error()), InternalError)
-	}
-
-	err = gen.Run(c.Context)
+	err = generator.New(resources.sourceFS, resources.staticFS, storage, slugifier, renderer).Run(c.Context)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("generator failed: %s", err.Error()), InternalError)
 	}
+
 	return nil
 }
 

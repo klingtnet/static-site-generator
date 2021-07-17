@@ -317,18 +317,16 @@ func (g *Generator) Run(ctx context.Context) error {
 	return nil
 }
 
-func New(sourceFS, staticFS fs.FS, stor Storage, slugifier *slug.Slugifier, renderer *Renderer) (*Generator, error) {
+func New(sourceFS, staticFS fs.FS, stor Storage, slugifier *slug.Slugifier, renderer *Renderer) *Generator {
 	if staticFS == nil {
 		staticFS = defaultStaticFS
 	}
 
-	g := &Generator{
+	return &Generator{
 		sourceFS:  sourceFS,
 		staticFS:  staticFS,
 		stor:      stor,
 		slugifier: slugifier,
 		renderer:  renderer,
 	}
-
-	return g, nil
 }
