@@ -75,7 +75,11 @@ func run(c *cli.Context) error {
 		return cli.Exit(fmt.Sprintf("instantiating generator failed: %s", err.Error()), InternalError)
 	}
 
-	return gen.Run(c.Context)
+	err = gen.Run(c.Context)
+	if err != nil {
+		return cli.Exit(fmt.Sprintf("generator failed: %s", err.Error()), InternalError)
+	}
+	return nil
 }
 
 func main() {
