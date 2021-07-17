@@ -68,6 +68,8 @@ type FrontMatter struct {
 	CreatedAt frontmatter.SimpleDate `json:"created_at"`
 	// Tags are list of words categorizing the page.
 	Tags []string `json:"tags"`
+	// Hidden excludes page from navigation menu.
+	Hidden bool `json:"hidden"`
 }
 
 // MenuEntry is an entry in the navigation menu.
@@ -146,7 +148,7 @@ func buildMenu(ctx context.Context, library *Library) error {
 		return rootPages[i].FM.Title < rootPages[j].FM.Title
 	})
 	for _, page := range rootPages {
-		if page.Path == "index.md" {
+		if page.FM.Hidden || page.Path == "index.md" {
 			continue
 		}
 		menu = append(menu, MenuEntry{page.FM.Title, page.Path})
