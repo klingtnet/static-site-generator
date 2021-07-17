@@ -40,10 +40,6 @@ func (l *Library) PagesIn(dir string) []Page {
 	return pages
 }
 
-type Asset struct {
-	Name string
-}
-
 type Page struct {
 	Path     string
 	FM       FrontMatter
