@@ -12,8 +12,8 @@ import (
 )
 
 type testFrontMatter struct {
-	Author    string     `json:"author"`
-	CreatedAt SimpleDate `json:"created_at"`
+	Author    string      `json:"author"`
+	CreatedAt *SimpleDate `json:"created_at"`
 }
 
 //go:embed testdata/*.md
@@ -92,4 +92,16 @@ func TestRead(t *testing.T) {
 			require.Equal(t, tCase.content, string(content))
 		})
 	}
+}
+
+func TestSimpleDate(t *testing.T) {
+	d := NewSimpleDate(2020, 07, 17)
+	jsonEncoded := `"2020-07-17"`
+
+	actual, err := d.MarshalJSON()
+	require.NoError(t, err, "marshaling failed")
+	require.Equal(t, jsonEncoded, string(actual))
+	d = &SimpleDate{}
+	require.NoError(t, d.UnmarshalJSON([]byte(jsonEncoded)), "unmarshaling failed")
+	require.Equal(t, "2020-07-17", d.String())
 }

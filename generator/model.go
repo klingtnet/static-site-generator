@@ -30,7 +30,10 @@ func (l *Library) PagesIn(dir string) []Page {
 	}
 	// Sort pages by Date descending
 	sort.SliceStable(pages, func(i, j int) bool {
-		return time.Time(pages[i].FM.CreatedAt).After(time.Time(pages[j].FM.CreatedAt))
+		if pages[i].FM.CreatedAt == nil || pages[j].FM.CreatedAt == nil {
+			return false
+		}
+		return time.Time(*pages[i].FM.CreatedAt).After(time.Time(*pages[j].FM.CreatedAt))
 	})
 
 	return pages
@@ -55,7 +58,7 @@ type FrontMatter struct {
 	// Description is a short abstract of the page.
 	Description string `json:"description"`
 	// CreatedAt determines when the article was written.
-	CreatedAt frontmatter.SimpleDate `json:"created_at"`
+	CreatedAt *frontmatter.SimpleDate `json:"created_at"`
 	// Tags are list of words categorizing the page.
 	Tags []string `json:"tags"`
 	// Hidden excludes page from navigation menu.

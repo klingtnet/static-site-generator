@@ -30,8 +30,9 @@ const SimpleDateLayout = "2006-01-02"
 type SimpleDate time.Time
 
 // NewSimpleDate returns a SimpleDate for the given date values.
-func NewSimpleDate(year, month, day int) SimpleDate {
-	return SimpleDate(time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC))
+func NewSimpleDate(year, month, day int) *SimpleDate {
+	date := SimpleDate(time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC))
+	return &date
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -47,7 +48,7 @@ func (s *SimpleDate) UnmarshalJSON(b []byte) error {
 // MarshalJSON implements json.Marshaler.
 func (s *SimpleDate) MarshalJSON() ([]byte, error) {
 	formatted := time.Time(*s).Format(SimpleDateLayout)
-	return []byte(formatted), nil
+	return []byte(`"` + formatted + `"`), nil
 }
 
 func (s *SimpleDate) String() string {
