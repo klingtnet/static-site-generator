@@ -36,8 +36,6 @@ type Templates struct {
 // NewTemplates parses templates from the given fs.FS and provides a set of default template functions.
 // The template folder is expected to contain three files, base.gohtml, page.gohtml and list.gohtml, where
 // base.gohtml will be shared by both, the page and list template.
-//
-// TODO: export template functions and document them.
 func NewTemplates(author, baseURL string, slugifier *slug.Slugifier, templateFS fs.FS) *Templates {
 	fns := defaultFuncMap(author, baseURL, slugifier)
 	return &Templates{
