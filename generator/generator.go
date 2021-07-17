@@ -46,11 +46,11 @@ type Asset struct {
 
 type Page struct {
 	Path     string
-	FM       Frontmatter
+	FM       FrontMatter
 	Markdown []byte
 }
 
-type Frontmatter struct {
+type FrontMatter struct {
 	Author      string                 `json:"author"`
 	Title       string                 `json:"title"`
 	Description string                 `json:"description"`
@@ -88,7 +88,7 @@ func collectArtifacts(ctx context.Context, library *Library, sourceFS fs.FS) fun
 		}
 		defer f.Close()
 
-		var fm Frontmatter
+		var fm FrontMatter
 		err = frontmatter.Read(ctx, f, &fm)
 		if err != nil {
 			return fmt.Errorf("%q: frontmatter parsing failed: %w", path, err)

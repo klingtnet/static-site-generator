@@ -48,12 +48,12 @@ func TestRenderer(t *testing.T) {
 	require.NotNil(t, renderer)
 
 	buf := bytes.NewBuffer(nil)
-	err := renderer.Page(context.Background(), buf, &Library{}, Page{Markdown: []byte(`Some content.`), FM: Frontmatter{Title: "Test Page"}})
+	err := renderer.Page(context.Background(), buf, &Library{}, Page{Markdown: []byte(`Some content.`), FM: FrontMatter{Title: "Test Page"}})
 	require.NoError(t, err)
 	require.Equal(t, "Test Page\nSome content.", buf.String())
 
 	buf.Reset()
-	err = renderer.List(context.Background(), buf, &Library{Pages: map[string]Page{"articles/1.md": {FM: Frontmatter{CreatedAt: frontmatter.NewSimpleDate(2021, 07, 11), Title: "A"}}, "articles/2.md": {FM: Frontmatter{CreatedAt: frontmatter.NewSimpleDate(2021, 07, 12), Title: "B"}}}}, "articles")
+	err = renderer.List(context.Background(), buf, &Library{Pages: map[string]Page{"articles/1.md": {FM: FrontMatter{CreatedAt: frontmatter.NewSimpleDate(2021, 07, 11), Title: "A"}}, "articles/2.md": {FM: FrontMatter{CreatedAt: frontmatter.NewSimpleDate(2021, 07, 12), Title: "B"}}}}, "articles")
 	require.NoError(t, err)
 	// List of articles should be sorted by date of creation descending.
 	require.Equal(t, "Articles\nBA", buf.String())
@@ -101,9 +101,9 @@ func TestPageLink(t *testing.T) {
 		page     Page
 		expected string
 	}{
-		{"root-folder", Page{Path: "/about-me.md", FM: Frontmatter{Title: "About Me"}}, "https://john.doe/about-me.html"},
-		{"sub-folder", Page{Path: "/articles/my-first-article.md", FM: Frontmatter{Title: "My first article"}}, "https://john.doe/articles/my-first-article.html"},
-		{"sub-sub-folder", Page{Path: "/articles/2021/my-first-article.md", FM: Frontmatter{Title: "My first article"}}, "https://john.doe/articles/2021/my-first-article.html"},
+		{"root-folder", Page{Path: "/about-me.md", FM: FrontMatter{Title: "About Me"}}, "https://john.doe/about-me.html"},
+		{"sub-folder", Page{Path: "/articles/my-first-article.md", FM: FrontMatter{Title: "My first article"}}, "https://john.doe/articles/my-first-article.html"},
+		{"sub-sub-folder", Page{Path: "/articles/2021/my-first-article.md", FM: FrontMatter{Title: "My first article"}}, "https://john.doe/articles/2021/my-first-article.html"},
 	}
 
 	for _, tCase := range tCases {
