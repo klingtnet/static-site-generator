@@ -18,13 +18,19 @@ import (
 	"github.com/klingtnet/static-site-generator/slug"
 )
 
+// Library contains all content of the website.
 type Library struct {
-	Pages  map[string]Page
+	// Pages map content path to page.
+	Pages map[string]Page
+	// Assets is a list of asset paths.
 	Assets []string
-	Dirs   []string
-	Menu   []MenuEntry
+	// Dirs is a list of all directories storing website content.
+	Dirs []string
+	// Menu is a list of entries for the navigation menu.
+	Menu []MenuEntry
 }
 
+// PagesIn returns a list of pages for the given directory in descending order of creation date.
 func (l *Library) PagesIn(dir string) []Page {
 	var pages []Page
 	for path, page := range l.Pages {
@@ -40,22 +46,36 @@ func (l *Library) PagesIn(dir string) []Page {
 	return pages
 }
 
+// Page is a website page.
 type Page struct {
-	Path     string
-	FM       FrontMatter
+	// Path of content file.
+	Path string
+	// FM contains page meta data from front matter.
+	FM FrontMatter
+	// Markdown formatted content.
 	Markdown []byte
 }
 
+// FrontMatter stores metadata of a page.
 type FrontMatter struct {
-	Author      string                 `json:"author"`
-	Title       string                 `json:"title"`
-	Description string                 `json:"description"`
-	CreatedAt   frontmatter.SimpleDate `json:"created_at"`
-	Tags        []string               `json:"tags"`
+	// Author of the page.
+	Author string `json:"author"`
+	// Title of the page.
+	Title string `json:"title"`
+	// Description is a short abstract of the page.
+	Description string `json:"description"`
+	// CreatedAt determines when the article was written.
+	CreatedAt frontmatter.SimpleDate `json:"created_at"`
+	// Tags are list of words categorizing the page.
+	Tags []string `json:"tags"`
 }
 
+// MenuEntry is an entry in the navigation menu.
 type MenuEntry struct {
+	// Name of the menu entry.
+	// TODO: Rename to title.
 	Name string
+	// Path of the page file.
 	Path string
 }
 
