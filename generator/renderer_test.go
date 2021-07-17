@@ -73,7 +73,7 @@ func TestAbsLink(t *testing.T) {
 
 	for _, tCase := range tCases {
 		t.Run(tCase.name, func(t *testing.T) {
-			require.Equal(t, tCase.expected, absLink("https://john.doe", tCase.path))
+			require.Equal(t, tCase.expected, AbsLink("https://john.doe", tCase.path))
 		})
 	}
 }
@@ -90,7 +90,7 @@ func TestReplaceExtension(t *testing.T) {
 	}
 	for _, tCase := range tCases {
 		t.Run(tCase.name, func(t *testing.T) {
-			require.Equal(t, tCase.expected, replaceExtension(tCase.path, tCase.extension))
+			require.Equal(t, tCase.expected, ReplaceExtension(tCase.path, tCase.extension))
 		})
 	}
 }
@@ -108,7 +108,7 @@ func TestPageLink(t *testing.T) {
 
 	for _, tCase := range tCases {
 		t.Run(tCase.name, func(t *testing.T) {
-			require.Equal(t, tCase.expected, pageLink("https://john.doe", slug.NewSlugifier('-'), tCase.page))
+			require.Equal(t, tCase.expected, PageLink("https://john.doe", slug.NewSlugifier('-'), tCase.page))
 		})
 	}
 }

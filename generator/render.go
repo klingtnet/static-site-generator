@@ -46,15 +46,20 @@ func NewTemplates(author, baseURL string, slugifier *slug.Slugifier, templateFS 
 	}
 }
 
-func pageLink(baseURL string, slugifier *slug.Slugifier, page Page) string {
+// PageLink returns a link for the given page using its slugified title as filename.
+func PageLink(baseURL string, slugifier *slug.Slugifier, page Page) string {
 	return baseURL + filepath.Join("/", filepath.Dir(page.Path), slugifier.Slugify(page.FM.Title)+".html")
 }
 
-func absLink(baseURL string, path string) string {
+// AbsLink returns an absolute representation of the given path.
+func AbsLink(baseURL string, path string) string {
 	return baseURL + filepath.Clean("/"+path)
 }
 
-func replaceExtension(path, ext string) string {
+// ReplaceExtension replaces the extension of path with ext.
+// The given path remains unchanged if it does not end with a file extension.
+// Note that ext is expected to start with a dot.
+func ReplaceExtension(path, ext string) string {
 	actual := filepath.Ext(path)
 	if actual != "" {
 		return path[:len(path)-len(actual)] + ext
@@ -65,10 +70,10 @@ func replaceExtension(path, ext string) string {
 func defaultFuncMap(author, baseURL string, slugifier *slug.Slugifier) template.FuncMap {
 	return template.FuncMap{
 		"pageLink": func(page Page) string {
-			return pageLink(baseURL, slugifier, page)
+			return PageLink(baseURL, slugifier, page)
 		},
-		"absLink":          func(path string) string { return absLink(baseURL, path) },
-		"replaceExtension": replaceExtension,
+		"absLink":          func(path string) string { return AbsLink(baseURL, path) },
+		"replaceExtension": ReplaceExtension,
 	}
 }
 
