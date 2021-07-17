@@ -35,6 +35,10 @@ func run(c *cli.Context) error {
 		return cli.Exit(fmt.Sprintf("parsing config %q failed: %s", c.String("config"), err.Error()), BadArgument)
 	}
 	flagOverride(config, c)
+	err = config.Validate()
+	if err != nil {
+		return cli.Exit(fmt.Sprintf("bad config: %s", err.Error()), BadArgument)
+	}
 
 	sourceFS := os.DirFS(config.ContentDir)
 
