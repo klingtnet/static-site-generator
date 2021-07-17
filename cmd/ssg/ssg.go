@@ -43,9 +43,8 @@ func initResources(config *generator.Config) (r *resources, err error) {
 	if config.TemplatesDir != "" {
 		r.templateFS = os.DirFS(config.TemplatesDir)
 	} else {
-		r.templateFS, err = fs.Sub(generator.DefaultTemplateFS, "templates")
+		r.templateFS = generator.DefaultTemplateFS()
 	}
-
 	return
 }
 

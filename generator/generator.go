@@ -114,7 +114,15 @@ func initLibrary(ctx context.Context, sourceFS fs.FS) (*Library, error) {
 }
 
 //go:embed templates/*.gohtml
-var DefaultTemplateFS embed.FS
+var defaultTemplateFS embed.FS
+
+func DefaultTemplateFS() fs.FS {
+	templateFS, err := fs.Sub(defaultTemplateFS, "templates")
+	if err != nil {
+		panic(err)
+	}
+	return templateFS
+}
 
 //go:embed static
 var defaultStaticFS embed.FS
