@@ -58,3 +58,14 @@ output/
 ```
 
 Anything besides the root `index.md` is optional.
+
+## Development
+
+Thanks to Go's excellent profiling support it is very easy to generate a CPU and memory profile.  The following commands shows how to do this for a benchmark:
+
+```sh
+$ go test -cpuprofile cpu.prof -memprofile mem.prof -bench=BenchmarkGenerator ./generator/
+```
+
+Generated profiles can then be analyzed using `pprof`, e.g. by running `go tool pprof -http :9999 cpu.prof`.
+Profiles should be analyzed for any performance optimization to verify if they bring a benefit or not.
