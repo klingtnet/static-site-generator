@@ -252,11 +252,13 @@ func (g *Generator) Run(ctx context.Context) error {
 		return fmt.Errorf("library initialization failed: %w", err)
 	}
 
+	// TODO: parallelize copying
 	err = g.copyStatic(ctx, library)
 	if err != nil {
 		return fmt.Errorf("copying static content failed: %w", err)
 	}
 
+	// TODO: parallelize rendering
 	err = g.render(ctx, library)
 	if err != nil {
 		return fmt.Errorf("rendering failed: %w", err)
