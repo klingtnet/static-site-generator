@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/klingtnet/static-site-generator/frontmatter"
@@ -40,14 +41,20 @@ func initSourceDir(b *testing.B, pages, directories int, tempDir string) {
 		}
 		defer f.Close()
 
-		f.Write([]byte("```json\n"))
+		var sb strings.Builder
+		_, _ = sb.Write([]byte("```json\n"))
 		fm := FrontMatter{Author: "John Doe", Title: b.Name(), Description: "A random page used for benchmarking the generator.", CreatedAt: frontmatter.NewSimpleDate(2021, 07, 17), Tags: []string{"generator", "benchmark", "Go"}, Hidden: false}
-		err = json.NewEncoder(f).Encode(fm)
+		err = json.NewEncoder(&sb).Encode(fm)
 		if err != nil {
 			b.Fatal(err.Error())
 		}
-		f.Write([]byte("```\n"))
-		f.Write(content)
+		_, _ = sb.Write([]byte("```\n"))
+		_, _ = sb.Write(content)
+
+		_, err = f.Write([]byte(sb.String()))
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 
 	writePage(filepath.Join(tempDir, "index.md"))
