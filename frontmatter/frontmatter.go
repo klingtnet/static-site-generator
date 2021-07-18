@@ -59,16 +59,21 @@ func (s *SimpleDate) String() string {
 // Reading is unbuffered to prevent reading more than the actual line.
 // This is the caes for bufio.ReadString and similar functions from this package.
 func readLine(r io.Reader) (s string, err error) {
-	b := make([]byte, 1, 128)
+	b := make([]byte, 1)
+	var sb strings.Builder
 	for {
 		_, err = r.Read(b)
 		if err != nil {
 			return
 		}
 		if b[0] == '\n' {
+			s = sb.String()
 			return
 		}
-		s += string(b[0])
+		err = sb.WriteByte(b[0])
+		if err != nil {
+			return
+		}
 	}
 }
 
