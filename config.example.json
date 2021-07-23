@@ -1,0 +1,7 @@
+{
+    "author": "John Doe",
+    "base_url": "https://john.doe",
+    "content_dir": "./content",
+    "static_dir": "/optional/static",
+    "templates_dir": "/optional/templates"
+}

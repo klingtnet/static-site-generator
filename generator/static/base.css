@@ -1,0 +1,11 @@
+.nobullets {
+    list-style: none;
+}
+
+.center {
+    text-align: center;
+}
+
+.mono {
+    font-family: monospace;
+}

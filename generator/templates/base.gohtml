@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {{ if .Description }}
+  <meta name="description" content="{{ .Description }}">{{ end }}
+  <title>{{ .Title }}</title>
+
+  <link rel="stylesheet" type="text/css" href='{{ absLink "static/base.css"}}' />
+</head>
+
+<body>
+  <div>
+    <div>
+      <header>
+        {{ template "menu" .Menu }}
+      </header>
+    </div>
+    <div>
+      <main>
+        {{ template "content" .Content }}
+      </main>
+    </div>
+    <div>
+      <footer>
+        {{ template "footer" }}
+      </footer>
+    </div>
+  </div>
+</body>
+
+</html>
+
+{{ define "menu" }}
+<nav>
+  <ul class="nobullets">
+    {{ range $_, $entry := . }}
+    <li><a href='{{ absLink (replaceExtension $entry.Path ".html") }}'>{{ $entry.Title }}</a></li>
+    {{ end }}
+  </ul>
+</nav>
+{{ end }}
+
+{{ define "footer" }}
+<p class="center">
+  <a href="#">Back to top.</a>
+</p>
+{{ end }}
