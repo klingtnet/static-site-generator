@@ -3,5 +3,6 @@
     "base_url": "https://john.doe",
     "content_dir": "./content",
     "static_dir": "/optional/static",
+    "output_dir": "./output",
     "templates_dir": "/optional/templates"
 }

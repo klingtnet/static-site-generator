@@ -27,6 +27,9 @@ func flagOverride(config *generator.Config, c *cli.Context) {
 	if c.String("static") != "" {
 		config.StaticDir = c.String("static")
 	}
+	if c.String("output") != "" {
+		config.OutputDir = c.String("output")
+	}
 }
 
 type resources struct {
@@ -93,7 +96,6 @@ func main() {
 			&cli.StringFlag{
 				Name:  "output",
 				Usage: "path to output folder",
-				Value: "output",
 			},
 			&cli.StringFlag{
 				Name:     "config",

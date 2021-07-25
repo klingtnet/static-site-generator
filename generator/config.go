@@ -18,6 +18,8 @@ type Config struct {
 	ContentDir string `json:"content_dir"`
 	// StaticDir is the path of a directory that contains static files to include in the generated website.
 	StaticDir string `json:"static_dir"`
+	// OutputDir is the path of a directory where the generated website will be stored into.
+	OutputDir string `json:"output_dir"`
 	// TemplatesDir is the path of a directory that contains a set of custom templates used to render the website.
 	TemplatesDir string `json:"templates_dir"`
 }
@@ -25,6 +27,7 @@ type Config struct {
 var (
 	ErrAuthorUnset     = fmt.Errorf("author is unset")
 	ErrContentDirUnset = fmt.Errorf("content dir is unset")
+	ErrOutputDirUnset  = fmt.Errorf("output dir is unset")
 )
 
 // Validate returns an error if the configuration is incomplete or invalid.
@@ -32,12 +35,21 @@ func (c *Config) Validate() error {
 	if strings.TrimSpace(c.Author) == "" {
 		return ErrAuthorUnset
 	}
+
 	if strings.TrimSpace(c.ContentDir) == "" {
 		return ErrContentDirUnset
 	}
 	_, err := fs.Stat(os.DirFS(c.ContentDir), ".")
 	if err != nil {
 		return fmt.Errorf("bad source dir %q: %w", c.ContentDir, err)
+	}
+
+	if strings.TrimSpace(c.OutputDir) == "" {
+		return ErrOutputDirUnset
+	}
+	_, err = fs.Stat(os.DirFS(c.OutputDir), ".")
+	if err != nil {
+		return fmt.Errorf("bad output dir %q: %w", c.ContentDir, err)
 	}
 
 	return nil
