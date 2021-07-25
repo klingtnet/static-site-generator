@@ -34,7 +34,7 @@ func NewSlugifier(replacement rune) *Slugifier {
 	return &Slugifier{
 		replacement:  replacement,
 		repetitionRE: regexp.MustCompile(`(` + string(replacement) + `{2,})`),
-		// NKFD is the decomposed compatibility equivalsle form of unicode, e.g. ê will become e^.
+		// NKFD is the decomposed compatibility form of unicode, e.g. ê will become e^.
 		// For more details see this blog post https://blog.golang.org/normalization.
 		unicodeTransformer: transform.Chain(norm.NFKD, runes.Remove(runes.In(unicode.Mark)), runes.Map(mappingFn)),
 	}
