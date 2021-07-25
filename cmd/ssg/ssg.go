@@ -85,7 +85,6 @@ func main() {
 			&cli.StringFlag{
 				Name:  "content",
 				Usage: "path to source folder containing markdown articles and related files of any type",
-				Value: "content",
 			},
 			&cli.StringFlag{
 				Name:  "static",
