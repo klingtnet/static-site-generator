@@ -70,7 +70,7 @@ func run(c *cli.Context) error {
 	slugifier := slug.NewSlugifier('-')
 	templates := generator.NewTemplates(config.Author, config.BaseURL, slugifier, resources.templateFS)
 
-	storage := generator.NewFileStorage(c.String("output"))
+	storage := generator.NewFileStorage(config.OutputDir)
 	renderer := generator.NewRenderer(goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)), templates)
 	err = generator.New(resources.sourceFS, resources.staticFS, storage, slugifier, renderer).Run(c.Context)
 	if err != nil {
