@@ -63,16 +63,16 @@ func initSourceDir(b *testing.B, pages, directories int, tempDir string) {
 		var dir string
 		if d == 0 {
 			// write into content root
-			dir = os.TempDir()
+			dir = tempDir
 		} else {
-			dir = filepath.Join(os.TempDir(), "dir"+strconv.Itoa(d))
+			dir = filepath.Join(tempDir, "dir"+strconv.Itoa(d))
 		}
 		err = os.MkdirAll(dir, 0700)
 		if err != nil {
 			b.Fatal(err.Error())
 		}
 		writePage(filepath.Join(dir, "page"+strconv.Itoa(i)+".md"))
-		if i%directories == 0 {
+		if i%(pages/directories) == 0 {
 			d++
 			// new directory
 		}
