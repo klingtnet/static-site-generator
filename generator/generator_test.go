@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/klingtnet/static-site-generator/frontmatter"
@@ -19,12 +20,34 @@ import (
 
 // DiscardStorage implements Storage.
 type DiscardStorage struct {
-	b *testing.B
+	b    *testing.B
+	lock *sync.RWMutex
+	N    int
 }
 
 // Store implements Storage.
 func (ds *DiscardStorage) Store(ctx context.Context, name string, content io.Reader) (err error) {
+	ds.inc()
 	_, err = io.Copy(io.Discard, content)
+	return
+}
+
+func (ds *DiscardStorage) reset() {
+	ds.lock.Lock()
+	ds.N = 0
+	ds.lock.Unlock()
+}
+
+func (ds *DiscardStorage) inc() {
+	ds.lock.Lock()
+	ds.N++
+	ds.lock.Unlock()
+}
+
+func (ds *DiscardStorage) calls() (N int) {
+	ds.lock.RLock()
+	N = ds.N
+	ds.lock.RUnlock()
 	return
 }
 
@@ -82,16 +105,21 @@ func initSourceDir(b *testing.B, pages, directories int, tempDir string) {
 func BenchmarkGenerator(b *testing.B) {
 	tempDir := b.TempDir()
 	initSourceDir(b, 1000, 10, tempDir)
+	ds := &DiscardStorage{b, new(sync.RWMutex), 0}
 	sourceFS := os.DirFS(tempDir)
 	sl := slug.NewSlugifier('-')
 	md := goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote))
 	templates := NewTemplates(b.Name(), "https://does.not.matter", sl, DefaultTemplateFS())
-	generator := New(sourceFS, nil, &DiscardStorage{b}, sl, NewRenderer(md, templates))
+	generator := New(sourceFS, nil, ds, sl, NewRenderer(md, templates))
 
 	for n := 0; n < b.N; n++ {
+		ds.reset()
 		err := generator.Run(context.Background())
 		if err != nil {
 			b.Fatal(err.Error())
+		}
+		if ds.calls() != 1000+10 {
+			b.Fatalf("not enough pages rendered, expected %d but was %d", 1000+10, ds.calls())
 		}
 	}
 }
