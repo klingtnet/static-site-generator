@@ -171,6 +171,7 @@ func (g *Generator) copyStaticFiles() error {
 		if err != nil {
 			return err
 		}
+		defer src.Close()
 		return g.stor.Store(context.TODO(), path, src)
 	})
 }
