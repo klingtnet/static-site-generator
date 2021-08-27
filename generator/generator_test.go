@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"testing/fstest"
+	"time"
 
 	"github.com/klingtnet/static-site-generator/frontmatter"
 	"github.com/klingtnet/static-site-generator/slug"
@@ -120,6 +123,30 @@ func BenchmarkGenerator(b *testing.B) {
 		}
 		if ds.calls() != 1000+10 {
 			b.Fatalf("not enough pages rendered, expected %d but was %d", 1000+10, ds.calls())
+		}
+	}
+}
+
+func BenchmarkCopyStaticFiles(b *testing.B) {
+	testFS := make(fstest.MapFS)
+
+	rr := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < 1000; i++ {
+		f := &fstest.MapFile{Data: make([]byte, 1024*1024)}
+		_, err := rr.Read(f.Data)
+		if err != nil {
+			b.Fatal(err.Error())
+		}
+		testFS[strconv.Itoa(i)+".bin"] = f
+	}
+
+	ds := &DiscardStorage{b, new(sync.RWMutex), 0}
+	generator := New(nil, testFS, ds, nil, nil)
+	for n := 0; n < b.N; n++ {
+		ds.reset()
+		err := generator.copyStaticFiles()
+		if err != nil {
+			b.Fatal(err.Error())
 		}
 	}
 }
