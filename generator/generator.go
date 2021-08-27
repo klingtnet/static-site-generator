@@ -136,44 +136,84 @@ type Generator struct {
 	renderer           *Renderer
 }
 
-func (g *Generator) copyAsset(file string) error {
+func (g *Generator) copyAsset(ctx context.Context, file string) error {
 	src, err := g.sourceFS.Open(file)
 	if err != nil {
 		return err
 	}
 	defer src.Close()
 
-	return g.stor.Store(context.TODO(), file, src)
+	return g.stor.Store(ctx, file, src)
 }
 
-func (g *Generator) copyAssets(files []string) error {
-	for _, file := range files {
-		err := g.copyAsset(file)
-		if err != nil {
-			return fmt.Errorf("copying asset %q failed: %w", file, err)
-		}
+func (g *Generator) copyAssets(ctx context.Context, files []string) error {
+	N := runtime.NumCPU()
+	fileCh := make(chan string, N)
+	eg, ctx := errgroup.WithContext(ctx)
+
+	for i := 0; i < N; i++ {
+		eg.Go(func() error {
+			for file := range fileCh {
+				err := g.copyAsset(ctx, file)
+				if err != nil {
+					return fmt.Errorf("copying asset %q failed: %w", file, err)
+				}
+			}
+			return nil
+		})
 	}
 
-	return nil
+	eg.Go(func() error {
+		defer close(fileCh)
+		for _, file := range files {
+			fileCh <- file
+		}
+		return nil
+	})
+	return eg.Wait()
 }
 
-func (g *Generator) copyStaticFiles() error {
-	return fs.WalkDir(g.staticFS, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() {
-			return nil
-		}
-
+func (g *Generator) copyStaticFiles(ctx context.Context) error {
+	cp := func(ctx context.Context, path string) error {
 		src, err := g.staticFS.Open(path)
 		if err != nil {
 			return err
 		}
 		defer src.Close()
-		return g.stor.Store(context.TODO(), path, src)
+		return g.stor.Store(ctx, path, src)
+	}
+
+	N := runtime.NumCPU()
+	pathCh := make(chan string, N)
+	eg, ctx := errgroup.WithContext(ctx)
+
+	for i := 0; i < N; i++ {
+		eg.Go(func() error {
+			for path := range pathCh {
+				err := cp(ctx, path)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+	eg.Go(func() error {
+		defer close(pathCh)
+		return fs.WalkDir(g.staticFS, ".", func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if d.IsDir() {
+				return nil
+			}
+
+			pathCh <- path
+			return nil
+		})
 	})
+	return eg.Wait()
 }
 
 // TemplateData contains data used to render page templates.
@@ -218,13 +258,13 @@ func (g *Generator) renderPage(ctx context.Context, library *Library, pageCh <-c
 }
 
 func (g *Generator) copyStatic(ctx context.Context, library *Library) error {
-	err := g.copyAssets(library.Assets)
+	err := g.copyAssets(ctx, library.Assets)
 	if err != nil {
 		return fmt.Errorf("copying assets failed: %w", err)
 	}
 
 	if g.staticFS != nil {
-		err = g.copyStaticFiles()
+		err = g.copyStaticFiles(ctx)
 		if err != nil {
 			return fmt.Errorf("copying static files failed: %w", err)
 		}
@@ -270,7 +310,6 @@ func (g *Generator) Run(ctx context.Context) error {
 		return fmt.Errorf("library initialization failed: %w", err)
 	}
 
-	// TODO: parallelize copying
 	err = g.copyStatic(ctx, library)
 	if err != nil {
 		return fmt.Errorf("copying static content failed: %w", err)

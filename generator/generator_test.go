@@ -144,7 +144,7 @@ func BenchmarkCopyStaticFiles(b *testing.B) {
 	generator := New(nil, testFS, ds, nil, nil)
 	for n := 0; n < b.N; n++ {
 		ds.reset()
-		err := generator.copyStaticFiles()
+		err := generator.copyStaticFiles(context.Background())
 		if err != nil {
 			b.Fatal(err.Error())
 		}
