@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -190,21 +191,33 @@ func (g *Generator) renderListPage(library *Library, dir string) error {
 	return g.stor.Store(context.TODO(), filepath.Join(dir, "index.html"), buf)
 }
 
-func (g *Generator) renderPage(library *Library, page Page) error {
-	var dest string
-	if strings.HasSuffix(page.Path, "index.md") {
-		dest = filepath.Join(filepath.Dir(page.Path), "index.html")
-	} else {
-		dest = filepath.Join(filepath.Dir(page.Path), g.slugifier.Slugify(page.FM.Title)) + ".html"
+func (g *Generator) renderPage(ctx context.Context, library *Library, pageCh <-chan Page, errCh chan<- error, doneCh chan<- struct{}) {
+	render := func(page Page) error {
+		var dest string
+		if strings.HasSuffix(page.Path, "index.md") {
+			dest = filepath.Join(filepath.Dir(page.Path), "index.html")
+		} else {
+			dest = filepath.Join(filepath.Dir(page.Path), g.slugifier.Slugify(page.FM.Title)) + ".html"
+		}
+
+		buf := bytes.NewBuffer(make([]byte, 0, 8192))
+		err := g.renderer.Page(ctx, buf, library, page)
+		if err != nil {
+			return err
+		}
+
+		return g.stor.Store(ctx, dest, buf)
 	}
 
-	buf := bytes.NewBuffer(make([]byte, 0, 8192))
-	err := g.renderer.Page(context.TODO(), buf, library, page)
-	if err != nil {
-		return err
+	for page := range pageCh {
+		err := render(page)
+		if err != nil {
+			errCh <- fmt.Errorf("rendering page %q failed: %w", page.Path, err)
+			return
+		}
 	}
 
-	return g.stor.Store(context.TODO(), dest, buf)
+	doneCh <- struct{}{}
 }
 
 func (g *Generator) copyStatic(ctx context.Context, library *Library) error {
@@ -224,6 +237,7 @@ func (g *Generator) copyStatic(ctx context.Context, library *Library) error {
 }
 
 func (g *Generator) render(ctx context.Context, library *Library) error {
+	// Render list pages sequentially since there are commonly not that many of them.
 	for _, dir := range library.Dirs {
 		// List pages are only rendered if the folder does not contain a index.md.
 		_, err := fs.Stat(g.sourceFS, filepath.Clean(filepath.Join(dir, "index.md")))
@@ -235,13 +249,38 @@ func (g *Generator) render(ctx context.Context, library *Library) error {
 		}
 	}
 
-	for _, page := range library.Pages {
-		err := g.renderPage(library, page)
-		if err != nil {
-			return fmt.Errorf("rendering page %q failed: %w", page.Path, err)
-		}
+	N := runtime.NumCPU()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	pageCh := make(chan Page, N)
+	doneCh := make(chan struct{})
+	defer close(doneCh)
+	errCh := make(chan error, 1)
+	defer close(errCh)
+
+	for i := 0; i < N; i++ {
+		go g.renderPage(ctx, library, pageCh, errCh, doneCh)
 	}
 
+	go func() {
+		defer close(pageCh)
+		for _, page := range library.Pages {
+			pageCh <- page
+		}
+	}()
+
+	for N > 0 {
+		select {
+		case _, ok := <-doneCh:
+			if ok {
+				N--
+			}
+		case err := <-errCh:
+			return err
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 	return nil
 }
 
@@ -258,7 +297,6 @@ func (g *Generator) Run(ctx context.Context) error {
 		return fmt.Errorf("copying static content failed: %w", err)
 	}
 
-	// TODO: parallelize rendering
 	err = g.render(ctx, library)
 	if err != nil {
 		return fmt.Errorf("rendering failed: %w", err)
