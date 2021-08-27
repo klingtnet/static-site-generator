@@ -16,6 +16,7 @@ import (
 
 	"github.com/klingtnet/static-site-generator/frontmatter"
 	"github.com/klingtnet/static-site-generator/slug"
+	"golang.org/x/sync/errgroup"
 )
 
 func collectArtifacts(ctx context.Context, library *Library, sourceFS fs.FS) func(path string, d fs.DirEntry, err error) error {
@@ -191,8 +192,8 @@ func (g *Generator) renderListPage(library *Library, dir string) error {
 	return g.stor.Store(context.TODO(), filepath.Join(dir, "index.html"), buf)
 }
 
-func (g *Generator) renderPage(ctx context.Context, library *Library, pageCh <-chan Page, errCh chan<- error, doneCh chan<- struct{}) {
-	render := func(page Page) error {
+func (g *Generator) renderPage(ctx context.Context, library *Library, pageCh <-chan Page) error {
+	for page := range pageCh {
 		var dest string
 		if strings.HasSuffix(page.Path, "index.md") {
 			dest = filepath.Join(filepath.Dir(page.Path), "index.html")
@@ -206,18 +207,13 @@ func (g *Generator) renderPage(ctx context.Context, library *Library, pageCh <-c
 			return err
 		}
 
-		return g.stor.Store(ctx, dest, buf)
-	}
-
-	for page := range pageCh {
-		err := render(page)
+		err = g.stor.Store(ctx, dest, buf)
 		if err != nil {
-			errCh <- fmt.Errorf("rendering page %q failed: %w", page.Path, err)
-			return
+			return err
 		}
 	}
 
-	doneCh <- struct{}{}
+	return nil
 }
 
 func (g *Generator) copyStatic(ctx context.Context, library *Library) error {
@@ -250,18 +246,7 @@ func (g *Generator) render(ctx context.Context, library *Library) error {
 	}
 
 	N := runtime.NumCPU()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	pageCh := make(chan Page, N)
-	doneCh := make(chan struct{})
-	defer close(doneCh)
-	errCh := make(chan error, 1)
-	defer close(errCh)
-
-	for i := 0; i < N; i++ {
-		go g.renderPage(ctx, library, pageCh, errCh, doneCh)
-	}
-
 	go func() {
 		defer close(pageCh)
 		for _, page := range library.Pages {
@@ -269,19 +254,12 @@ func (g *Generator) render(ctx context.Context, library *Library) error {
 		}
 	}()
 
-	for N > 0 {
-		select {
-		case _, ok := <-doneCh:
-			if ok {
-				N--
-			}
-		case err := <-errCh:
-			return err
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+	eg, ctx := errgroup.WithContext(ctx)
+	for i := 0; i < N; i++ {
+		eg.Go(func() error { return g.renderPage(ctx, library, pageCh) })
 	}
-	return nil
+
+	return eg.Wait()
 }
 
 // Run generates the website.
