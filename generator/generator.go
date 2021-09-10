@@ -130,6 +130,7 @@ func DefaultTemplateFS() fs.FS {
 var defaultStaticFS embed.FS
 
 type Generator struct {
+	concurrency        int
 	sourceFS, staticFS fs.FS
 	stor               Storage
 	slugifier          *slug.Slugifier
@@ -147,11 +148,10 @@ func (g *Generator) copyAsset(ctx context.Context, file string) error {
 }
 
 func (g *Generator) copyAssets(ctx context.Context, files []string) error {
-	N := runtime.NumCPU()
-	fileCh := make(chan string, N)
+	fileCh := make(chan string, g.concurrency)
 	eg, ctx := errgroup.WithContext(ctx)
 
-	for i := 0; i < N; i++ {
+	for i := 0; i < g.concurrency; i++ {
 		eg.Go(func() error {
 			for file := range fileCh {
 				err := g.copyAsset(ctx, file)
@@ -183,11 +183,10 @@ func (g *Generator) copyStaticFiles(ctx context.Context) error {
 		return g.stor.Store(ctx, path, src)
 	}
 
-	N := runtime.NumCPU()
-	pathCh := make(chan string, N)
+	pathCh := make(chan string, g.concurrency)
 	eg, ctx := errgroup.WithContext(ctx)
 
-	for i := 0; i < N; i++ {
+	for i := 0; i < g.concurrency; i++ {
 		eg.Go(func() error {
 			for path := range pathCh {
 				err := cp(ctx, path)
@@ -286,8 +285,7 @@ func (g *Generator) render(ctx context.Context, library *Library) error {
 		}
 	}
 
-	N := runtime.NumCPU()
-	pageCh := make(chan Page, N)
+	pageCh := make(chan Page, g.concurrency)
 	go func() {
 		defer close(pageCh)
 		for _, page := range library.Pages {
@@ -296,7 +294,7 @@ func (g *Generator) render(ctx context.Context, library *Library) error {
 	}()
 
 	eg, ctx := errgroup.WithContext(ctx)
-	for i := 0; i < N; i++ {
+	for i := 0; i < g.concurrency; i++ {
 		eg.Go(func() error { return g.renderPage(ctx, library, pageCh) })
 	}
 
@@ -329,10 +327,11 @@ func New(sourceFS, staticFS fs.FS, stor Storage, slugifier *slug.Slugifier, rend
 	}
 
 	return &Generator{
-		sourceFS:  sourceFS,
-		staticFS:  staticFS,
-		stor:      stor,
-		slugifier: slugifier,
-		renderer:  renderer,
+		concurrency: runtime.NumCPU(),
+		sourceFS:    sourceFS,
+		staticFS:    staticFS,
+		stor:        stor,
+		slugifier:   slugifier,
+		renderer:    renderer,
 	}
 }
