@@ -3,10 +3,12 @@ package generator
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -115,15 +117,20 @@ func BenchmarkGenerator(b *testing.B) {
 	templates := NewTemplates(b.Name(), "https://does.not.matter", sl, DefaultTemplateFS())
 	generator := New(sourceFS, nil, ds, sl, NewRenderer(md, templates))
 
-	for n := 0; n < b.N; n++ {
-		ds.reset()
-		err := generator.Run(context.Background())
-		if err != nil {
-			b.Fatal(err.Error())
-		}
-		if ds.calls() != 1000+10 {
-			b.Fatalf("not enough pages rendered, expected %d but was %d", 1000+10, ds.calls())
-		}
+	for _, concurrency := range []int{1, runtime.NumCPU(), runtime.NumCPU() * 2} {
+		b.Run(fmt.Sprintf("concurrency-%d", concurrency), func(b *testing.B) {
+			generator.concurrency = concurrency
+			for n := 0; n < b.N; n++ {
+				ds.reset()
+				err := generator.Run(context.Background())
+				if err != nil {
+					b.Fatal(err.Error())
+				}
+				if ds.calls() != 1000+10 {
+					b.Fatalf("not enough pages rendered, expected %d but was %d", 1000+10, ds.calls())
+				}
+			}
+		})
 	}
 }
 
@@ -142,11 +149,16 @@ func BenchmarkCopyStaticFiles(b *testing.B) {
 
 	ds := &DiscardStorage{b, new(sync.RWMutex), 0}
 	generator := New(nil, testFS, ds, nil, nil)
-	for n := 0; n < b.N; n++ {
-		ds.reset()
-		err := generator.copyStaticFiles(context.Background())
-		if err != nil {
-			b.Fatal(err.Error())
-		}
+	for _, concurrency := range []int{1, runtime.NumCPU(), runtime.NumCPU() * 2} {
+		b.Run(fmt.Sprintf("concurrency-%d", concurrency), func(b *testing.B) {
+			generator.concurrency = concurrency
+			for n := 0; n < b.N; n++ {
+				ds.reset()
+				err := generator.copyStaticFiles(context.Background())
+				if err != nil {
+					b.Fatal(err.Error())
+				}
+			}
+		})
 	}
 }
