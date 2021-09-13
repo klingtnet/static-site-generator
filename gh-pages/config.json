@@ -1,0 +1,6 @@
+{
+    "author": "klingtnet",
+    "base_url": "https://klingtnet.github.io/static-site-generator",
+    "content_dir": "gh-pages/content",
+    "output_dir": "gh-pages/public"
+}
