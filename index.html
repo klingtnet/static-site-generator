@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title></title>
+
+  <link rel="stylesheet" type="text/css" href='https://klingtnet.github.io/static-site-generator/static/base.css' />
+</head>
+
+<body>
+  <div>
+    <div>
+      <header>
+        
+<nav>
+  <ul class="nobullets">
+    
+    <li><a href='https://klingtnet.github.io/static-site-generator/index.html'>Home</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+    </div>
+    <div>
+      <main>
+        
+<h1>ssg is yet another static site generator</h1>
+<p>For a real world usage example see <a href="https://github.com/klingtnet/klingtnet.github.io">klingtnet/klingtnet.github.io</a>.</p>
+<h2>Installation</h2>
+<p>If you've a Go distribution installed then just run:</p>
+<pre><code class="language-sh">$ go install github.com/klingtnet/static-site-generator/cmd/ssg@latest
+</code></pre>
+<p>Otherwise you can use one of the pre build binaries from the <a href="https://github.com/klingtnet/static-site-generator/releases">releases</a> page.</p>
+<h2>Usage</h2>
+<p>First you need a configuration file, for all available options refer to <a href="https://github.com/klingtnet/static-site-generator/blob/master/config.example.json"><code>example.config.json</code></a>.
+Second, and most important, is content.  The absolute minimum is a folder containing just an <code>index.md</code>.  The folder structure of a more complex page is shown below:</p>
+<pre><code>content/
+├── about-me.md
+├── articles
+│   ├── bye.md
+│   └── hello.md
+├── index.md
+├── images
+    └── photo.webp
+└── notes
+    └── index.md
+    └── something-else.md
+static/
+└── assets
+    └── base.css
+</code></pre>
+<p>For this example <code>ssg</code> will generate:</p>
+<ul>
+<li>a navigation menu containing all root pages and first-level subdirectories with markdown files, i.e. <code>[home,about,articles,notes]</code></li>
+<li>a list page for the <code>articles</code> directory (since no <code>index.md</code> was present)</li>
+<li>no list page for <code>notes</code>, instead <code>index.md</code> is assumed to be the list page</li>
+<li><code>images</code> is just copied</li>
+<li>contents from <code>static</code> directory will copied as is</li>
+</ul>
+<pre><code>output/
+├── about-me.html
+├── articles
+│   ├── bye.html
+│   ├── hello.html
+│   └── index.html
+├── index.html
+└── notes
+    ├── index.html
+    └── something-else.html
+└── assets
+    └── base.css
+</code></pre>
+<p>Anything besides the root <code>index.md</code> is optional.</p>
+<h2>Development</h2>
+<p>Thanks to Go's excellent profiling support it is very easy to generate a CPU and memory profile.  The following commands shows how to do this for a benchmark:</p>
+<pre><code class="language-sh">$ go test -cpuprofile cpu.prof -memprofile mem.prof -bench=BenchmarkGenerator ./generator/
+</code></pre>
+<p>Generated profiles can then be analyzed using <code>pprof</code>, e.g. by running <code>go tool pprof -http :9999 cpu.prof</code>.
+Profiles should be analyzed for any performance optimization to verify if they bring a benefit or not.</p>
+
+
+      </main>
+    </div>
+    <div>
+      <footer>
+        
+<p class="center">
+  <a href="#">Back to top.</a>
+</p>
+
+      </footer>
+    </div>
+  </div>
+</body>
+
+</html>
+
+
+
