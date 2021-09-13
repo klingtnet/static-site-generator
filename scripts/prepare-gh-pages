@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+mkdir -p gh-pages/public gh-pages/content
+
+cat <<HEREDOC>gh-pages/content/index.md
+\`\`\`json
+{
+	"author": "klingtnet",
+	"created_at": "2021-09-13"
+}
+\`\`\`
+HEREDOC
+
+cat README.md >>gh-pages/content/index.md
