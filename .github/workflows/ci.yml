@@ -16,7 +16,7 @@ jobs:
       uses: actions/checkout@v2
     - name: Test
       run: go test -race -v ./...
-    - name: Test
+    - name: Benchmark
       run: go test -bench=Bench ./...
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v2
