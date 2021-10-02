@@ -4,6 +4,7 @@ package slug
 import (
 	"regexp"
 	"strings"
+	"sync"
 	"unicode"
 
 	"golang.org/x/text/runes"
@@ -16,6 +17,8 @@ type Slugifier struct {
 	replacement        rune
 	repetitionRE       *regexp.Regexp
 	unicodeTransformer transform.Transformer
+
+	lock *sync.Mutex
 }
 
 // NewSlugifyer returns a initialized Slugifyer instance.
@@ -37,6 +40,7 @@ func NewSlugifier(replacement rune) *Slugifier {
 		// NKFD is the decomposed compatibility form of unicode, e.g. ê will become e^.
 		// For more details see this blog post https://blog.golang.org/normalization.
 		unicodeTransformer: transform.Chain(norm.NFKD, runes.Remove(runes.In(unicode.Mark)), runes.Map(mappingFn)),
+		lock:               new(sync.Mutex),
 	}
 }
 
@@ -67,6 +71,8 @@ func transliterateGerman(s string) string {
 func (sl *Slugifier) Slugify(s string) string {
 	s = transliterateGerman(strings.TrimSpace(strings.ToLower(s)))
 
+	sl.lock.Lock()
+	defer sl.lock.Unlock()
 	s, _, err := transform.String(sl.unicodeTransformer, s)
 	if err != nil {
 		// Note that this should not happen since the test cases are covering a variety of common corner-cases.

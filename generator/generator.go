@@ -10,11 +10,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
 	"github.com/klingtnet/static-site-generator/frontmatter"
 	"github.com/klingtnet/static-site-generator/slug"
+	"golang.org/x/sync/errgroup"
 )
 
 func collectArtifacts(ctx context.Context, library *Library, sourceFS fs.FS) func(path string, d fs.DirEntry, err error) error {
@@ -128,49 +130,89 @@ func DefaultTemplateFS() fs.FS {
 var defaultStaticFS embed.FS
 
 type Generator struct {
+	concurrency        int
 	sourceFS, staticFS fs.FS
 	stor               Storage
 	slugifier          *slug.Slugifier
 	renderer           *Renderer
 }
 
-func (g *Generator) copyAsset(file string) error {
+func (g *Generator) copyAsset(ctx context.Context, file string) error {
 	src, err := g.sourceFS.Open(file)
 	if err != nil {
 		return err
 	}
 	defer src.Close()
 
-	return g.stor.Store(context.TODO(), file, src)
+	return g.stor.Store(ctx, file, src)
 }
 
-func (g *Generator) copyAssets(files []string) error {
-	for _, file := range files {
-		err := g.copyAsset(file)
-		if err != nil {
-			return fmt.Errorf("copying asset %q failed: %w", file, err)
-		}
+func (g *Generator) copyAssets(ctx context.Context, files []string) error {
+	fileCh := make(chan string, g.concurrency)
+	eg, ctx := errgroup.WithContext(ctx)
+
+	for i := 0; i < g.concurrency; i++ {
+		eg.Go(func() error {
+			for file := range fileCh {
+				err := g.copyAsset(ctx, file)
+				if err != nil {
+					return fmt.Errorf("copying asset %q failed: %w", file, err)
+				}
+			}
+			return nil
+		})
 	}
 
-	return nil
+	eg.Go(func() error {
+		defer close(fileCh)
+		for _, file := range files {
+			fileCh <- file
+		}
+		return nil
+	})
+	return eg.Wait()
 }
 
-func (g *Generator) copyStaticFiles() error {
-	return fs.WalkDir(g.staticFS, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() {
-			return nil
-		}
-
+func (g *Generator) copyStaticFiles(ctx context.Context) error {
+	cp := func(ctx context.Context, path string) error {
 		src, err := g.staticFS.Open(path)
 		if err != nil {
 			return err
 		}
-		return g.stor.Store(context.TODO(), path, src)
+		defer src.Close()
+		return g.stor.Store(ctx, path, src)
+	}
+
+	pathCh := make(chan string, g.concurrency)
+	eg, ctx := errgroup.WithContext(ctx)
+
+	for i := 0; i < g.concurrency; i++ {
+		eg.Go(func() error {
+			for path := range pathCh {
+				err := cp(ctx, path)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+	eg.Go(func() error {
+		defer close(pathCh)
+		return fs.WalkDir(g.staticFS, ".", func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if d.IsDir() {
+				return nil
+			}
+
+			pathCh <- path
+			return nil
+		})
 	})
+	return eg.Wait()
 }
 
 // TemplateData contains data used to render page templates.
@@ -190,31 +232,38 @@ func (g *Generator) renderListPage(library *Library, dir string) error {
 	return g.stor.Store(context.TODO(), filepath.Join(dir, "index.html"), buf)
 }
 
-func (g *Generator) renderPage(library *Library, page Page) error {
-	var dest string
-	if strings.HasSuffix(page.Path, "index.md") {
-		dest = filepath.Join(filepath.Dir(page.Path), "index.html")
-	} else {
-		dest = filepath.Join(filepath.Dir(page.Path), g.slugifier.Slugify(page.FM.Title)) + ".html"
+func (g *Generator) renderPage(ctx context.Context, library *Library, pageCh <-chan Page) error {
+	for page := range pageCh {
+		var dest string
+		if strings.HasSuffix(page.Path, "index.md") {
+			dest = filepath.Join(filepath.Dir(page.Path), "index.html")
+		} else {
+			dest = filepath.Join(filepath.Dir(page.Path), g.slugifier.Slugify(page.FM.Title)) + ".html"
+		}
+
+		buf := bytes.NewBuffer(make([]byte, 0, 8192))
+		err := g.renderer.Page(ctx, buf, library, page)
+		if err != nil {
+			return err
+		}
+
+		err = g.stor.Store(ctx, dest, buf)
+		if err != nil {
+			return err
+		}
 	}
 
-	buf := bytes.NewBuffer(make([]byte, 0, 8192))
-	err := g.renderer.Page(context.TODO(), buf, library, page)
-	if err != nil {
-		return err
-	}
-
-	return g.stor.Store(context.TODO(), dest, buf)
+	return nil
 }
 
 func (g *Generator) copyStatic(ctx context.Context, library *Library) error {
-	err := g.copyAssets(library.Assets)
+	err := g.copyAssets(ctx, library.Assets)
 	if err != nil {
 		return fmt.Errorf("copying assets failed: %w", err)
 	}
 
 	if g.staticFS != nil {
-		err = g.copyStaticFiles()
+		err = g.copyStaticFiles(ctx)
 		if err != nil {
 			return fmt.Errorf("copying static files failed: %w", err)
 		}
@@ -224,6 +273,7 @@ func (g *Generator) copyStatic(ctx context.Context, library *Library) error {
 }
 
 func (g *Generator) render(ctx context.Context, library *Library) error {
+	// Render list pages sequentially since there are commonly not that many of them.
 	for _, dir := range library.Dirs {
 		// List pages are only rendered if the folder does not contain a index.md.
 		_, err := fs.Stat(g.sourceFS, filepath.Clean(filepath.Join(dir, "index.md")))
@@ -235,14 +285,20 @@ func (g *Generator) render(ctx context.Context, library *Library) error {
 		}
 	}
 
-	for _, page := range library.Pages {
-		err := g.renderPage(library, page)
-		if err != nil {
-			return fmt.Errorf("rendering page %q failed: %w", page.Path, err)
+	pageCh := make(chan Page, g.concurrency)
+	go func() {
+		defer close(pageCh)
+		for _, page := range library.Pages {
+			pageCh <- page
 		}
+	}()
+
+	eg, ctx := errgroup.WithContext(ctx)
+	for i := 0; i < g.concurrency; i++ {
+		eg.Go(func() error { return g.renderPage(ctx, library, pageCh) })
 	}
 
-	return nil
+	return eg.Wait()
 }
 
 // Run generates the website.
@@ -252,13 +308,11 @@ func (g *Generator) Run(ctx context.Context) error {
 		return fmt.Errorf("library initialization failed: %w", err)
 	}
 
-	// TODO: parallelize copying
 	err = g.copyStatic(ctx, library)
 	if err != nil {
 		return fmt.Errorf("copying static content failed: %w", err)
 	}
 
-	// TODO: parallelize rendering
 	err = g.render(ctx, library)
 	if err != nil {
 		return fmt.Errorf("rendering failed: %w", err)
@@ -273,10 +327,11 @@ func New(sourceFS, staticFS fs.FS, stor Storage, slugifier *slug.Slugifier, rend
 	}
 
 	return &Generator{
-		sourceFS:  sourceFS,
-		staticFS:  staticFS,
-		stor:      stor,
-		slugifier: slugifier,
-		renderer:  renderer,
+		concurrency: runtime.NumCPU(),
+		sourceFS:    sourceFS,
+		staticFS:    staticFS,
+		stor:        stor,
+		slugifier:   slugifier,
+		renderer:    renderer,
 	}
 }
