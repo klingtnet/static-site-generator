@@ -35,11 +35,11 @@ func (s *FileStorage) Store(ctx context.Context, name string, content io.Reader)
 	// Note that making the name absolute is preventing path traversal.
 	// This is because filepath.Clean is then removing parent directory references, aka double dots.
 	destPath := filepath.Join(s.baseDir, filepath.Clean("/"+name))
-	err := os.MkdirAll(filepath.Dir(destPath), 0700)
+	err := os.MkdirAll(filepath.Dir(destPath), 0755)
 	if err != nil {
 		return err
 	}
-	dest, err := os.OpenFile(destPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	dest, err := os.OpenFile(destPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}

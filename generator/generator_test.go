@@ -63,7 +63,7 @@ func initSourceDir(b *testing.B, pages, directories int, tempDir string) {
 	}
 
 	writePage := func(filename string) {
-		f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+		f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
 			b.Fatal(err.Error())
 		}
@@ -95,7 +95,7 @@ func initSourceDir(b *testing.B, pages, directories int, tempDir string) {
 		} else {
 			dir = filepath.Join(tempDir, "dir"+strconv.Itoa(d))
 		}
-		err = os.MkdirAll(dir, 0700)
+		err = os.MkdirAll(dir, 0755)
 		if err != nil {
 			b.Fatal(err.Error())
 		}
