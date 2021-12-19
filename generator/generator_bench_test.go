@@ -1,22 +1,24 @@
 package generator
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
 
 	"github.com/klingtnet/static-site-generator/frontmatter"
+	"github.com/klingtnet/static-site-generator/generator/model"
+	"github.com/klingtnet/static-site-generator/generator/renderer"
 	"github.com/klingtnet/static-site-generator/slug"
 	"github.com/yuin/goldmark"
 	emoji "github.com/yuin/goldmark-emoji"
@@ -56,68 +58,67 @@ func (ds *DiscardStorage) calls() (N int) {
 	return
 }
 
-func initSourceDir(b *testing.B, pages, directories int, tempDir string) {
-	content, err := os.ReadFile("../README.md")
+func frontmatterToJson(b *testing.B, fm model.FrontMatter) []byte {
+	buf := bytes.NewBuffer(nil)
+	enc := json.NewEncoder(buf)
+	enc.SetIndent("", "  ")
+
+	err := enc.Encode(fm)
 	if err != nil {
-		b.Fatal(err.Error())
+		b.Fatal(err)
 	}
 
-	writePage := func(filename string) {
-		f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-		if err != nil {
-			b.Fatal(err.Error())
-		}
-		defer f.Close()
+	return buf.Bytes()
+}
 
-		var sb strings.Builder
-		_, _ = sb.Write([]byte("```json\n"))
-		fm := FrontMatter{Author: "John Doe", Title: b.Name(), Description: "A random page used for benchmarking the generator.", CreatedAt: frontmatter.NewSimpleDate(2021, 07, 17), Tags: []string{"generator", "benchmark", "Go"}, Hidden: false}
-		err = json.NewEncoder(&sb).Encode(fm)
-		if err != nil {
-			b.Fatal(err.Error())
-		}
-		_, _ = sb.Write([]byte("```\n"))
-		_, _ = sb.Write(content)
-
-		_, err = f.Write([]byte(sb.String()))
+func buildPage(b *testing.B, content string, fm model.FrontMatter) []byte {
+	buf := bytes.NewBufferString("```json\n")
+	mustWrite := func(s string) {
+		_, err := buf.WriteString(s)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 
-	writePage(filepath.Join(tempDir, "index.md"))
-	d := 0
-	for i := 1; i < pages; i++ {
-		var dir string
-		if d == 0 {
-			// write into content root
-			dir = tempDir
-		} else {
-			dir = filepath.Join(tempDir, "dir"+strconv.Itoa(d))
+	mustWrite(string(frontmatterToJson(b, fm)))
+	mustWrite("\n```\n")
+	mustWrite("\n\n")
+	mustWrite(content)
+
+	return buf.Bytes()
+}
+
+func NewBenchContentFS(b *testing.B, depth, pages int) fs.FS {
+	contentFS := fstest.MapFS{}
+	fm := model.FrontMatter{Author: "John Doe", Title: b.Name(), Description: "A random page used for benchmarking the generator.", CreatedAt: frontmatter.NewSimpleDate(2021, 07, 17), Tags: []string{"generator", "benchmark", "Go"}, Hidden: false}
+	pageContent, err := os.ReadFile("../README.md")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	prefix := ""
+	for i := 0; i < pages; i++ {
+		if i%(pages/depth) == 0 {
+			prefix += "sub/"
 		}
-		err = os.MkdirAll(dir, 0755)
-		if err != nil {
-			b.Fatal(err.Error())
-		}
-		writePage(filepath.Join(dir, "page"+strconv.Itoa(i)+".md"))
-		if i%(pages/directories) == 0 {
-			d++
-			// new directory
+
+		filename := fmt.Sprintf("%spage%05d.md", prefix, i)
+		contentFS[filename] = &fstest.MapFile{
+			Data: buildPage(b, string(pageContent), fm),
 		}
 	}
+
+	return contentFS
 }
 
 func BenchmarkGenerator(b *testing.B) {
-	tempDir := b.TempDir()
-	initSourceDir(b, 1000, 10, tempDir)
 	ds := &DiscardStorage{b, new(sync.RWMutex), 0}
-	sourceFS := os.DirFS(tempDir)
 	sl := slug.NewSlugifier('-')
 	md := goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote))
-	templates := NewTemplates(b.Name(), "https://does.not.matter", sl, DefaultTemplateFS())
-	generator := New(sourceFS, nil, ds, sl, NewRenderer(md, templates))
+	templates := renderer.NewTemplates(b.Name(), "https://does.not.matter", sl, DefaultTemplateFS())
+	generator := New(NewBenchContentFS(b, 10, 1000), nil, ds, sl, renderer.NewMarkdown(md, templates))
 
-	for _, concurrency := range []int{1, runtime.NumCPU(), runtime.NumCPU() * 2} {
+	for _, concurrency := range []int{1, runtime.NumCPU() / 2, runtime.NumCPU(), runtime.NumCPU() * 2} {
 		b.Run(fmt.Sprintf("concurrency-%d", concurrency), func(b *testing.B) {
 			generator.concurrency = concurrency
 			for n := 0; n < b.N; n++ {
@@ -126,8 +127,8 @@ func BenchmarkGenerator(b *testing.B) {
 				if err != nil {
 					b.Fatal(err.Error())
 				}
-				if ds.calls() != 1000+10 {
-					b.Fatalf("not enough pages rendered, expected %d but was %d", 1000+10, ds.calls())
+				if ds.calls() != 1066 {
+					b.Fatalf("not enough pages rendered, expected %d but was %d", 1066, ds.calls())
 				}
 			}
 		})

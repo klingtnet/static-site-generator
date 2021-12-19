@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/klingtnet/static-site-generator/generator"
+	"github.com/klingtnet/static-site-generator/generator/renderer"
 	"github.com/klingtnet/static-site-generator/slug"
 	"github.com/urfave/cli/v2"
 	"github.com/yuin/goldmark"
@@ -68,10 +69,9 @@ func run(c *cli.Context) error {
 	}
 
 	slugifier := slug.NewSlugifier('-')
-	templates := generator.NewTemplates(config.Author, config.BaseURL, slugifier, resources.templateFS)
-
+	templates := renderer.NewTemplates(config.Author, config.BaseURL, slugifier, resources.templateFS)
 	storage := generator.NewFileStorage(config.OutputDir)
-	renderer := generator.NewRenderer(goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)), templates)
+	renderer := renderer.NewMarkdown(goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)), templates)
 	err = generator.New(resources.sourceFS, resources.staticFS, storage, slugifier, renderer).Run(c.Context)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("generator failed: %s", err.Error()), InternalError)
