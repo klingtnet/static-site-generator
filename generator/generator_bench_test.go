@@ -28,7 +28,7 @@ import (
 // DiscardStorage implements Storage.
 type DiscardStorage struct {
 	b    *testing.B
-	lock *sync.RWMutex
+	lock sync.RWMutex
 	N    int
 }
 
@@ -112,7 +112,7 @@ func NewBenchContentFS(b *testing.B, depth, pages int) fs.FS {
 }
 
 func BenchmarkGenerator(b *testing.B) {
-	ds := &DiscardStorage{b, new(sync.RWMutex), 0}
+	ds := &DiscardStorage{b, sync.RWMutex{}, 0}
 	sl := slug.NewSlugifier('-')
 	md := goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote))
 	templates := renderer.NewTemplates(b.Name(), "https://does.not.matter", sl, DefaultTemplateFS())
@@ -148,7 +148,7 @@ func BenchmarkCopyStaticFiles(b *testing.B) {
 		testFS[strconv.Itoa(i)+".bin"] = f
 	}
 
-	ds := &DiscardStorage{b, new(sync.RWMutex), 0}
+	ds := &DiscardStorage{b, sync.RWMutex{}, 0}
 	generator := New(nil, testFS, ds, nil, nil)
 	for _, concurrency := range []int{1, runtime.NumCPU(), runtime.NumCPU() * 2} {
 		b.Run(fmt.Sprintf("concurrency-%d", concurrency), func(b *testing.B) {
