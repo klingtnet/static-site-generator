@@ -20,6 +20,14 @@ jobs:
       run: go test -bench=Bench ./...
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v2
+    - name: Upload assets
+      uses: actions/upload-artifact@v2
+      with:
+        name: ssg
+        path: dist/*
+  release:
+    runs-on: 'ubuntu-latest'
+    steps:
     - name: Run GoReleaser
       uses: goreleaser/goreleaser-action@v2
       if: startsWith(github.ref, 'refs/tags/')
@@ -29,8 +37,3 @@ jobs:
         args: release --rm-dist
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Upload assets
-      uses: actions/upload-artifact@v2
-      with:
-        name: ssg
-        path: dist/*
