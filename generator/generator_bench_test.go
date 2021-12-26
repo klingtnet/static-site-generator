@@ -88,7 +88,7 @@ func buildPage(b *testing.B, content string, fm model.FrontMatter) []byte {
 	return buf.Bytes()
 }
 
-func NewBenchContentFS(b *testing.B, depth, pages int) fs.FS {
+func newBenchContentFS(b *testing.B, depth, pages int) fs.FS {
 	contentFS := fstest.MapFS{}
 	fm := model.FrontMatter{Author: "John Doe", Title: b.Name(), Description: "A random page used for benchmarking the generator.", CreatedAt: frontmatter.NewSimpleDate(2021, 07, 17), Tags: []string{"generator", "benchmark", "Go"}, Hidden: false}
 	pageContent, err := os.ReadFile("../README.md")
@@ -116,7 +116,7 @@ func BenchmarkGenerator(b *testing.B) {
 	sl := slug.NewSlugifier('-')
 	md := goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote))
 	templates := renderer.NewTemplates(b.Name(), "https://does.not.matter", sl, DefaultTemplateFS())
-	generator := New(NewBenchContentFS(b, 10, 1000), nil, ds, sl, renderer.NewMarkdown(md, templates))
+	generator := New(newBenchContentFS(b, 10, 1000), nil, ds, sl, renderer.NewMarkdown(md, templates))
 
 	for _, concurrency := range []int{1, runtime.NumCPU() / 2, runtime.NumCPU(), runtime.NumCPU() * 2} {
 		b.Run(fmt.Sprintf("concurrency-%d", concurrency), func(b *testing.B) {
