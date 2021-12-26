@@ -17,7 +17,7 @@ func TestContentTree(t *testing.T) {
 	var files []string
 	var pages []string
 	var dirs []string
-	content.Walk(func(tree Tree) error {
+	err = content.Walk(func(tree Tree) error {
 		switch el := tree.(type) {
 		case *ContentTree:
 			dirs = append(dirs, el.Path())
@@ -29,6 +29,7 @@ func TestContentTree(t *testing.T) {
 
 		return nil
 	})
+	require.NoError(t, err)
 
 	require.ElementsMatch(t, []string{"files/random.txt"}, files)
 	require.ElementsMatch(t, []string{

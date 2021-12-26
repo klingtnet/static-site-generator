@@ -57,7 +57,7 @@ func TestGenerator(t *testing.T) {
 	require.NoError(t, err)
 
 	files, folders := []string{}, []string{}
-	fs.WalkDir(memStor.memFS, ".", func(path string, d fs.DirEntry, err error) error {
+	err = fs.WalkDir(memStor.memFS, ".", func(path string, d fs.DirEntry, err error) error {
 		require.NoError(t, err)
 
 		if d.IsDir() {
@@ -68,6 +68,7 @@ func TestGenerator(t *testing.T) {
 
 		return nil
 	})
+	require.NoError(t, err)
 	require.ElementsMatch(t, []string{
 		".",
 		"blog",

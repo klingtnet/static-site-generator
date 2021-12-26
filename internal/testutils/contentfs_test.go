@@ -20,7 +20,7 @@ func TestNewTestContentFS(t *testing.T) {
 	}
 
 	var actual []string
-	fs.WalkDir(contentFS, ".", func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(contentFS, ".", func(path string, d fs.DirEntry, err error) error {
 		require.NoError(t, err)
 
 		if d.Type().IsRegular() {
@@ -29,6 +29,7 @@ func TestNewTestContentFS(t *testing.T) {
 
 		return nil
 	})
+	require.NoError(t, err)
 
 	require.ElementsMatch(t, expected, actual)
 }
