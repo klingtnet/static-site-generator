@@ -7,20 +7,21 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/klingtnet/static-site-generator/internal/testutils"
 )
 
 func TestFSWatcher(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	indexMD := &fstest.MapFile{
-		ModTime: time.Now(),
-		Mode:    0600,
-		Data:    []byte("Hello, World!"),
-	}
-	sourceFS := fstest.MapFS{
-		"index.md": indexMD,
-	}
+	sourceFS := testutils.NewConcurrentMapFS(fstest.MapFS{
+		"index.md": &fstest.MapFile{
+			ModTime: time.Unix(1, 0),
+			Mode:    0600,
+			Data:    []byte("Hello, World!"),
+		},
+	})
 	ticker := time.NewTicker(100 * time.Millisecond)
 
 	// The first run will indicate a change because
@@ -38,28 +39,39 @@ func TestFSWatcher(t *testing.T) {
 
 	// Check if a new file is detected.
 	newMD := &fstest.MapFile{
-		ModTime: time.Now(),
+		ModTime: time.Unix(1, 0),
 		Data:    []byte("we should consider a content hash instead of diffing the file size."),
 	}
-	sourceFS["new.md"] = newMD
+	sourceFS.Store("new.md", newMD)
 	result = <-resultCh
 	require.NoError(t, result.Err)
 	require.True(t, result.HasChanged)
 
 	// Check if a change in modification time is detected.
-	indexMD.ModTime = time.Now()
+	sourceFS.Store("index.md", &fstest.MapFile{
+		ModTime: time.Unix(2, 0),
+		Mode:    0600,
+		Data:    []byte("Hello, World!"),
+	})
 	result = <-resultCh
 	require.NoError(t, result.Err)
 	require.True(t, result.HasChanged)
 
 	// Check if a size change is detected.
-	indexMD.Data = []byte("This has a different size than 'Hello, World!'.")
+	sourceFS.Store("index.md", &fstest.MapFile{
+		ModTime: time.Unix(2, 0),
+		Mode:    0600,
+		Data:    []byte("This has a different size than 'Hello, World!'."),
+	})
 	result = <-resultCh
 	require.NoError(t, result.Err)
 	require.True(t, result.HasChanged)
 
 	// We do not check file contents yet, hance this change in casing will not be detected.
-	newMD.Data = []byte("We should consider a content hash instead of diffing the file size.")
+	sourceFS.Store("new.md", &fstest.MapFile{
+		ModTime: time.Unix(1, 0),
+		Data:    []byte("WE SHOULD CONSIDER A CONTENT HASH INSTEAD OF DIFFING THE FILE SIZE."),
+	})
 	result = <-resultCh
 	require.NoError(t, result.Err)
 	require.False(t, result.HasChanged)
