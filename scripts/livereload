@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-_CONFIG=${1:-config.json}
-
-set -euo pipefail
-
-git ls-files | entr sh -c "go test ./... && go run ./cmd/ssg --config $_CONFIG"

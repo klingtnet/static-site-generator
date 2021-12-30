@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -57,10 +58,11 @@ func initResources(config *generator.Config) (r *resources, err error) {
 
 func setup(c *cli.Context) (
 	gen *generator.Generator,
+	config *generator.Config,
 	resources *resources,
 	err error,
 ) {
-	config, err := generator.ParseConfigFile(c.String("config"))
+	config, err = generator.ParseConfigFile(c.String("config"))
 	if err != nil {
 		err = cli.Exit(fmt.Sprintf("parsing config %q failed: %s", c.String("config"), err.Error()), BadArgument)
 		return
@@ -89,7 +91,7 @@ func setup(c *cli.Context) (
 }
 
 func run(c *cli.Context) error {
-	generator, _, err := setup(c)
+	generator, _, _, err := setup(c)
 	if err != nil {
 		return err
 	}
@@ -103,7 +105,7 @@ func run(c *cli.Context) error {
 }
 
 func liveReload(c *cli.Context) error {
-	generator, resources, err := setup(c)
+	generator, config, resources, err := setup(c)
 	if err != nil {
 		return err
 	}
@@ -114,6 +116,21 @@ func liveReload(c *cli.Context) error {
 		fswatcher.New(resources.staticFS, time.NewTicker(checkInterval)).Watch(c.Context),
 		fswatcher.New(resources.templateFS, time.NewTicker(checkInterval)).Watch(c.Context),
 	}
+
+	go func() {
+		for {
+			server := &http.Server{
+				Addr:    fmt.Sprintf("%s:%d", c.String("host"), c.Int("port")),
+				Handler: http.FileServer(http.Dir(config.OutputDir)),
+			}
+			log.Printf("listening on http://%s", server.Addr)
+
+			err = server.ListenAndServe()
+			if err != nil {
+				log.Printf("server crashed: %s", err.Error())
+			}
+		}
+	}()
 
 	for {
 		hasChanged := false
@@ -164,12 +181,22 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:  "livereload",
-				Usage: "rebuild website on every change",
+				Usage: "start a webserver and rebuild website on every change",
 				Flags: []cli.Flag{
 					&cli.DurationFlag{
 						Name:  "check-interval",
 						Usage: "how long to wait between checking for changed files",
 						Value: 1 * time.Second,
+					},
+					&cli.StringFlag{
+						Name:  "host",
+						Usage: "hostname the server should listen to",
+						Value: "localhost",
+					},
+					&cli.IntFlag{
+						Name:  "port",
+						Usage: "port the server should listen to",
+						Value: 10000,
 					},
 				},
 				Action: liveReload,
