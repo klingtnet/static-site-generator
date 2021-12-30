@@ -6,9 +6,11 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"time"
 
 	"github.com/klingtnet/static-site-generator/generator"
 	"github.com/klingtnet/static-site-generator/generator/renderer"
+	"github.com/klingtnet/static-site-generator/internal/fswatcher"
 	"github.com/klingtnet/static-site-generator/slug"
 	"github.com/urfave/cli/v2"
 	"github.com/yuin/goldmark"
@@ -53,33 +55,87 @@ func initResources(config *generator.Config) (r *resources, err error) {
 	return
 }
 
-func run(c *cli.Context) error {
+func setup(c *cli.Context) (
+	gen *generator.Generator,
+	resources *resources,
+	err error,
+) {
 	config, err := generator.ParseConfigFile(c.String("config"))
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("parsing config %q failed: %s", c.String("config"), err.Error()), BadArgument)
+		err = cli.Exit(fmt.Sprintf("parsing config %q failed: %s", c.String("config"), err.Error()), BadArgument)
+		return
 	}
 	flagOverride(config, c)
 
 	err = config.Validate()
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("bad config: %s", err.Error()), BadArgument)
+		err = cli.Exit(fmt.Sprintf("bad config: %s", err.Error()), BadArgument)
+		return
 	}
 
-	resources, err := initResources(config)
+	resources, err = initResources(config)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("bad resources: %s", err.Error()), BadArgument)
+		err = cli.Exit(fmt.Sprintf("bad resources: %s", err.Error()), BadArgument)
+		return
 	}
 
 	slugifier := slug.NewSlugifier('-')
 	templates := renderer.NewTemplates(config.Author, config.BaseURL, slugifier, resources.templateFS)
 	storage := generator.NewFileStorage(config.OutputDir)
 	renderer := renderer.NewMarkdown(goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)), templates)
-	err = generator.New(resources.sourceFS, resources.staticFS, storage, slugifier, renderer).Run(c.Context)
+	gen = generator.New(resources.sourceFS, resources.staticFS, storage, slugifier, renderer)
+
+	return
+}
+
+func run(c *cli.Context) error {
+	generator, _, err := setup(c)
+	if err != nil {
+		return err
+	}
+
+	err = generator.Run(c.Context)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("generator failed: %s", err.Error()), InternalError)
 	}
 
 	return nil
+}
+
+func liveReload(c *cli.Context) error {
+	generator, resources, err := setup(c)
+	if err != nil {
+		return err
+	}
+
+	checkInterval := c.Duration("check-interval")
+	watchers := []<-chan fswatcher.Result{
+		fswatcher.New(resources.sourceFS, time.NewTicker(checkInterval)).Watch(c.Context),
+		fswatcher.New(resources.staticFS, time.NewTicker(checkInterval)).Watch(c.Context),
+		fswatcher.New(resources.templateFS, time.NewTicker(checkInterval)).Watch(c.Context),
+	}
+
+	for {
+		hasChanged := false
+
+		for _, watcher := range watchers {
+			result := <-watcher
+			if result.Err != nil {
+				return err
+			}
+
+			hasChanged = hasChanged || result.HasChanged
+		}
+
+		if hasChanged {
+			log.Println("something has changed, rebuilding...")
+
+			err = generator.Run(c.Context)
+			if err != nil {
+				log.Printf("generator failed: %s", err.Error())
+			}
+		}
+	}
 }
 
 func main() {
@@ -103,6 +159,20 @@ func main() {
 				Name:     "config",
 				Usage:    "config file to use",
 				Required: true,
+			},
+		},
+		Commands: []*cli.Command{
+			{
+				Name:  "livereload",
+				Usage: "rebuild website on every change",
+				Flags: []cli.Flag{
+					&cli.DurationFlag{
+						Name:  "check-interval",
+						Usage: "how long to wait between checking for changed files",
+						Value: 1 * time.Second,
+					},
+				},
+				Action: liveReload,
 			},
 		},
 		Action: run,
