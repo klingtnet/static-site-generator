@@ -22,6 +22,8 @@ type Config struct {
 	OutputDir string `json:"output_dir"`
 	// TemplatesDir is the path of a directory that contains a set of custom templates used to render the website.
 	TemplatesDir string `json:"templates_dir"`
+	// EnableUnsafeHTML allow embedding raw HTML snippets into markdown.
+	EnableUnsafeHTML bool `json:"unsafe_html"`
 }
 
 var (

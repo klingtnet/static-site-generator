@@ -17,6 +17,7 @@ import (
 	"github.com/yuin/goldmark"
 	emoji "github.com/yuin/goldmark-emoji"
 	"github.com/yuin/goldmark/extension"
+	goldmarkhtml "github.com/yuin/goldmark/renderer/html"
 )
 
 const (
@@ -84,7 +85,13 @@ func setup(c *cli.Context) (
 	slugifier := slug.NewSlugifier('-')
 	templates := renderer.NewTemplates(config.Author, config.BaseURL, slugifier, resources.templateFS)
 	storage := generator.NewFileStorage(config.OutputDir)
-	renderer := renderer.NewMarkdown(goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)), templates)
+
+	markdownOptions := []goldmark.Option{goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)}
+	if config.EnableUnsafeHTML {
+		markdownOptions = append(markdownOptions, goldmark.WithRendererOptions(goldmarkhtml.WithUnsafe()))
+	}
+	renderer := renderer.NewMarkdown(goldmark.New(markdownOptions...), templates)
+
 	gen = generator.New(resources.sourceFS, resources.staticFS, storage, slugifier, renderer)
 
 	return
