@@ -4,5 +4,6 @@
     "content_dir": "./content",
     "static_dir": "/optional/static",
     "output_dir": "./output",
-    "templates_dir": "/optional/templates"
+    "templates_dir": "/optional/templates",
+	"unsafe_html": true
 }
