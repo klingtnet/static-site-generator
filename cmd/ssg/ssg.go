@@ -2,11 +2,14 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/klingtnet/static-site-generator/generator"
@@ -111,6 +114,41 @@ func run(c *cli.Context) error {
 	return nil
 }
 
+func fileHandler(httpDir http.Dir, notFoundPage []byte) http.HandlerFunc {
+	fileServer := http.FileServer(httpDir)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f, err := httpDir.Open(r.URL.Path)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+
+			_, err = io.Copy(w, bytes.NewBuffer(notFoundPage))
+			if err != nil {
+				log.Println("sending 404 response page failed:", err.Error())
+			}
+			return
+		}
+		f.Close()
+
+		fileServer.ServeHTTP(w, r)
+	})
+}
+
+func runServer(host string, port int, outputDir string) error {
+	notFoundPage, err := os.ReadFile(filepath.Join(outputDir, "404.html"))
+	if err != nil {
+		notFoundPage = []byte(http.StatusText(http.StatusNotFound))
+	}
+
+	server := &http.Server{
+		Addr:    fmt.Sprintf("%s:%d", host, port),
+		Handler: fileHandler(http.Dir(outputDir), notFoundPage),
+	}
+	log.Printf("listening on http://%s", server.Addr)
+
+	return server.ListenAndServe()
+}
+
 func liveReload(c *cli.Context) error {
 	generator, config, resources, err := setup(c)
 	if err != nil {
@@ -126,13 +164,7 @@ func liveReload(c *cli.Context) error {
 
 	go func() {
 		for {
-			server := &http.Server{
-				Addr:    fmt.Sprintf("%s:%d", c.String("host"), c.Int("port")),
-				Handler: http.FileServer(http.Dir(config.OutputDir)),
-			}
-			log.Printf("listening on http://%s", server.Addr)
-
-			err = server.ListenAndServe()
+			err = runServer(c.String("host"), c.Int("port"), config.OutputDir)
 			if err != nil {
 				log.Printf("server crashed: %s", err.Error())
 			}
