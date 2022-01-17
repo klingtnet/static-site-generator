@@ -51,7 +51,7 @@ func (c *Config) Validate() error {
 	}
 	_, err = fs.Stat(os.DirFS(c.OutputDir), ".")
 	if err != nil {
-		return fmt.Errorf("bad output dir %q: %w", c.ContentDir, err)
+		return fmt.Errorf("bad output dir %q: %w", c.OutputDir, err)
 	}
 
 	return nil
