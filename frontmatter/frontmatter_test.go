@@ -37,14 +37,14 @@ func TestRead(t *testing.T) {
 			"valid",
 			readTestContent(t, "valid-page"),
 			"\n# A test page",
-			testFrontMatter{Author: "Andreas Linz", CreatedAt: NewSimpleDate(2021, 05, 26)},
+			testFrontMatter{Author: "Andreas Linz", CreatedAt: NewSimpleDate(2021, 5, 26)},
 			nil,
 		},
 		{
 			"no-content",
 			readTestContent(t, "no-content"),
 			"",
-			testFrontMatter{Author: "Andreas Linz", CreatedAt: NewSimpleDate(2021, 05, 26)},
+			testFrontMatter{Author: "Andreas Linz", CreatedAt: NewSimpleDate(2021, 5, 26)},
 			nil,
 		},
 		{
@@ -95,7 +95,7 @@ func TestRead(t *testing.T) {
 }
 
 func TestSimpleDate(t *testing.T) {
-	d := NewSimpleDate(2020, 07, 17)
+	d := NewSimpleDate(2020, 7, 17)
 	jsonEncoded := `"2020-07-17"`
 
 	actual, err := d.MarshalJSON()

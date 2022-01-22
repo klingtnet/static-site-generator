@@ -90,7 +90,7 @@ func buildPage(b *testing.B, content string, fm model.FrontMatter) []byte {
 
 func newBenchContentFS(b *testing.B, depth, pages int) fs.FS {
 	contentFS := fstest.MapFS{}
-	fm := model.FrontMatter{Author: "John Doe", Title: b.Name(), Description: "A random page used for benchmarking the generator.", CreatedAt: frontmatter.NewSimpleDate(2021, 07, 17), Tags: []string{"generator", "benchmark", "Go"}, Hidden: false}
+	fm := model.FrontMatter{Author: "John Doe", Title: b.Name(), Description: "A random page used for benchmarking the generator.", CreatedAt: frontmatter.NewSimpleDate(2021, 7, 17), Tags: []string{"generator", "benchmark", "Go"}, Hidden: false}
 	pageContent, err := os.ReadFile("../README.md")
 	if err != nil {
 		b.Fatal(err)
