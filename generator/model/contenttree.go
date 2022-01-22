@@ -50,7 +50,11 @@ func readPage(ctx context.Context, contentFS fs.FS, name string) (*Page, error) 
 	return page, nil
 }
 
-func newWithParent(ctx context.Context, contentFS fs.FS, dir, parentDir string) (*ContentTree, error) {
+func newWithParent(
+	ctx context.Context,
+	contentFS fs.FS,
+	dir, parentDir string,
+) (*ContentTree, error) {
 	tree := &ContentTree{
 		fullPath: filepath.Join(parentDir, dir),
 		name:     dir,

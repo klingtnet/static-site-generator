@@ -53,8 +53,16 @@ func TestGenerator(t *testing.T) {
 	contentFS := testutils.NewTestContentFS(t)
 	memStor := &memoryStorage{t: t, memFS: make(fstest.MapFS)}
 	slugifier := slug.NewSlugifier('-')
-	templates := renderer.NewTemplates(config.Author, config.BaseURL, slugifier, DefaultTemplateFS())
-	renderer := renderer.NewMarkdown(goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)), templates)
+	templates := renderer.NewTemplates(
+		config.Author,
+		config.BaseURL,
+		slugifier,
+		DefaultTemplateFS(),
+	)
+	renderer := renderer.NewMarkdown(
+		goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)),
+		templates,
+	)
 
 	generator := New(config, contentFS, nil, memStor, slugifier, renderer)
 	err := generator.Run(context.Background())

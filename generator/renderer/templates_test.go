@@ -33,9 +33,19 @@ func TestReplaceExtension(t *testing.T) {
 		path, extension string
 		expected        string
 	}{
-		{"unchanged", "https://john.doe/no/extension", ".doesnotmatter", "https://john.doe/no/extension"},
+		{
+			"unchanged",
+			"https://john.doe/no/extension",
+			".doesnotmatter",
+			"https://john.doe/no/extension",
+		},
 		{"index.md", "index.md", ".html", "index.html"},
-		{"multiple extensions", "file.having.multiple.extensions", ".exts", "file.having.multiple.exts"},
+		{
+			"multiple extensions",
+			"file.having.multiple.extensions",
+			".exts",
+			"file.having.multiple.exts",
+		},
 	}
 	for _, tCase := range tCases {
 		t.Run(tCase.name, func(t *testing.T) {
@@ -50,14 +60,36 @@ func TestPageLink(t *testing.T) {
 		page     TemplatePage
 		expected string
 	}{
-		{"root-folder", TemplatePage{Path: "/about-me.md", FM: model.FrontMatter{Title: "About Me"}}, "https://john.doe/about-me.html"},
-		{"sub-folder", TemplatePage{Path: "/articles/my-first-article.md", FM: model.FrontMatter{Title: "My first article"}}, "https://john.doe/articles/my-first-article.html"},
-		{"sub-sub-folder", TemplatePage{Path: "/articles/2021/my-first-article.md", FM: model.FrontMatter{Title: "My first article"}}, "https://john.doe/articles/2021/my-first-article.html"},
+		{
+			"root-folder",
+			TemplatePage{Path: "/about-me.md", FM: model.FrontMatter{Title: "About Me"}},
+			"https://john.doe/about-me.html",
+		},
+		{
+			"sub-folder",
+			TemplatePage{
+				Path: "/articles/my-first-article.md",
+				FM:   model.FrontMatter{Title: "My first article"},
+			},
+			"https://john.doe/articles/my-first-article.html",
+		},
+		{
+			"sub-sub-folder",
+			TemplatePage{
+				Path: "/articles/2021/my-first-article.md",
+				FM:   model.FrontMatter{Title: "My first article"},
+			},
+			"https://john.doe/articles/2021/my-first-article.html",
+		},
 	}
 
 	for _, tCase := range tCases {
 		t.Run(tCase.name, func(t *testing.T) {
-			require.Equal(t, tCase.expected, PageLink("https://john.doe", slug.NewSlugifier('-'), tCase.page))
+			require.Equal(
+				t,
+				tCase.expected,
+				PageLink("https://john.doe", slug.NewSlugifier('-'), tCase.page),
+			)
 		})
 	}
 }

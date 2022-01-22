@@ -68,7 +68,10 @@ func setup(c *cli.Context) (
 ) {
 	config, err = generator.ParseConfigFile(c.String("config"))
 	if err != nil {
-		err = cli.Exit(fmt.Sprintf("parsing config %q failed: %s", c.String("config"), err.Error()), BadArgument)
+		err = cli.Exit(
+			fmt.Sprintf("parsing config %q failed: %s", c.String("config"), err.Error()),
+			BadArgument,
+		)
 		return
 	}
 	flagOverride(config, c)
@@ -86,16 +89,33 @@ func setup(c *cli.Context) (
 	}
 
 	slugifier := slug.NewSlugifier('-')
-	templates := renderer.NewTemplates(config.Author, config.BaseURL, slugifier, resources.templateFS)
+	templates := renderer.NewTemplates(
+		config.Author,
+		config.BaseURL,
+		slugifier,
+		resources.templateFS,
+	)
 	storage := generator.NewFileStorage(config.OutputDir)
 
-	markdownOptions := []goldmark.Option{goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)}
+	markdownOptions := []goldmark.Option{
+		goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote),
+	}
 	if config.EnableUnsafeHTML {
-		markdownOptions = append(markdownOptions, goldmark.WithRendererOptions(goldmarkhtml.WithUnsafe()))
+		markdownOptions = append(
+			markdownOptions,
+			goldmark.WithRendererOptions(goldmarkhtml.WithUnsafe()),
+		)
 	}
 	renderer := renderer.NewMarkdown(goldmark.New(markdownOptions...), templates)
 
-	gen = generator.New(config, resources.sourceFS, resources.staticFS, storage, slugifier, renderer)
+	gen = generator.New(
+		config,
+		resources.sourceFS,
+		resources.staticFS,
+		storage,
+		slugifier,
+		renderer,
+	)
 
 	return
 }

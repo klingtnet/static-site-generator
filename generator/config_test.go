@@ -35,10 +35,18 @@ func TestConfigValidate(t *testing.T) {
 		config *Config
 		err    error
 	}{
-		{"minimal config", &Config{Author: "John Doe", ContentDir: contentDir, OutputDir: outputDir}, nil},
+		{
+			"minimal config",
+			&Config{Author: "John Doe", ContentDir: contentDir, OutputDir: outputDir},
+			nil,
+		},
 		{"no author", &Config{ContentDir: contentDir}, ErrAuthorUnset},
 		{"no content dir", &Config{Author: "John Doe"}, ErrContentDirUnset},
-		{"bad content dir", &Config{Author: "John Doe", ContentDir: "./should/not/exist"}, fs.ErrNotExist},
+		{
+			"bad content dir",
+			&Config{Author: "John Doe", ContentDir: "./should/not/exist"},
+			fs.ErrNotExist,
+		},
 	}
 	for _, tCase := range tCases {
 		t.Run(tCase.name, func(t *testing.T) {

@@ -79,7 +79,11 @@ func (g *Generator) copyStaticFiles(ctx context.Context) error {
 	)
 }
 
-func (g *Generator) renderListPage(ctx context.Context, content model.Tree, siteMenu []model.MenuEntry) error {
+func (g *Generator) renderListPage(
+	ctx context.Context,
+	content model.Tree,
+	siteMenu []model.MenuEntry,
+) error {
 	buf := bytes.NewBuffer(make([]byte, 0, 8192))
 	err := g.renderer.List(ctx, buf, content, siteMenu)
 	if err != nil {
@@ -169,13 +173,20 @@ func (g *Generator) renderFeedPage(ctx context.Context, page *model.Page) (*feed
 		Title:       page.Frontmatter().Title,
 		Description: page.Frontmatter().Description,
 		Author:      &feeds.Author{Name: page.Frontmatter().Author},
-		Link:        &feeds.Link{Href: renderer.PageLink(g.config.BaseURL, g.slugifier, templatePage)},
-		Created:     time.Now(),
-		Content:     content.String(),
+		Link: &feeds.Link{
+			Href: renderer.PageLink(g.config.BaseURL, g.slugifier, templatePage),
+		},
+		Created: time.Now(),
+		Content: content.String(),
 	}, nil
 }
 
-func (g *Generator) renderPage(ctx context.Context, content model.Tree, siteMenu []model.MenuEntry, page *model.Page) error {
+func (g *Generator) renderPage(
+	ctx context.Context,
+	content model.Tree,
+	siteMenu []model.MenuEntry,
+	page *model.Page,
+) error {
 	var dest string
 	if strings.HasSuffix(page.Path(), "index.md") {
 		dest = filepath.Join(filepath.Dir(page.Path()), "index.html")
@@ -224,7 +235,11 @@ func (g *Generator) copyStatic(ctx context.Context, content *model.ContentTree) 
 	return nil
 }
 
-func (g *Generator) collectContentDirs(ctx context.Context, tree model.Tree, resultCh chan<- interface{}) error {
+func (g *Generator) collectContentDirs(
+	ctx context.Context,
+	tree model.Tree,
+	resultCh chan<- interface{},
+) error {
 	content, ok := tree.(*model.ContentTree)
 	if !ok {
 		return nil
@@ -334,7 +349,13 @@ func (g *Generator) Run(ctx context.Context) error {
 }
 
 // New returns a new Generator instance.
-func New(config *Config, sourceFS, staticFS fs.FS, stor Storage, slugifier *slug.Slugifier, renderer renderer.Renderer) *Generator {
+func New(
+	config *Config,
+	sourceFS, staticFS fs.FS,
+	stor Storage,
+	slugifier *slug.Slugifier,
+	renderer renderer.Renderer,
+) *Generator {
 	if staticFS == nil {
 		staticFS = defaultStaticFS
 	}

@@ -15,11 +15,19 @@ func TestSlugify(t *testing.T) {
 		{"empty", "", ""},
 		{"only-whitespace", "  	\n	", ""},
 		{"unicode", "raison d'être", "raison-d-etre"},
-		{"french book title", `Les métamorphoses d’Aladin ou comment il fut passé au caviar`, "les-metamorphoses-d-aladin-ou-comment-il-fut-passe-au-caviar"},
+		{
+			"french book title",
+			`Les métamorphoses d’Aladin ou comment il fut passé au caviar`,
+			"les-metamorphoses-d-aladin-ou-comment-il-fut-passe-au-caviar",
+		},
 		{"konnichi wa", `こんにちは`, `こんにちは`},
 		{"hyphens", "a-b‐c⸗d﹣e", "a-b-c-d-e"},
 		{"collapsed-repetitions", "''a'''b''c''d'", "a-b-c-d"},
-		{"spiegel.de", `Erklärtes Ziel ist ein »Präsenzschuljahr«`, "erklaertes-ziel-ist-ein-praesenzschuljahr"},
+		{
+			"spiegel.de",
+			`Erklärtes Ziel ist ein »Präsenzschuljahr«`,
+			"erklaertes-ziel-ist-ein-praesenzschuljahr",
+		},
 		{"Straße", "Straße", "strasse"},
 	}
 

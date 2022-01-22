@@ -34,7 +34,12 @@ func NewMarkdown(md goldmark.Markdown, templates *Templates) *Markdown {
 }
 
 // Page renders a single page.
-func (m *Markdown) Page(ctx context.Context, w io.Writer, page TemplatePage, siteMenu []model.MenuEntry) error {
+func (m *Markdown) Page(
+	ctx context.Context,
+	w io.Writer,
+	page TemplatePage,
+	siteMenu []model.MenuEntry,
+) error {
 	buf := bytes.NewBuffer(nil)
 	err := m.md.Convert(page.Markdown, buf)
 	if err != nil {
@@ -82,7 +87,12 @@ func NewTemplatePage(page *model.Page) TemplatePage {
 }
 
 // List renders a list, or directory overview, page.
-func (m *Markdown) List(ctx context.Context, w io.Writer, content model.Tree, siteMenu []model.MenuEntry) error {
+func (m *Markdown) List(
+	ctx context.Context,
+	w io.Writer,
+	content model.Tree,
+	siteMenu []model.MenuEntry,
+) error {
 	var pages []TemplatePage
 	for _, child := range content.Children() {
 		page, ok := child.(*model.Page)

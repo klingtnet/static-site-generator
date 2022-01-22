@@ -26,15 +26,25 @@ func NewTemplates(author, baseURL string, slugifier *slug.Slugifier, templateFS 
 	fns := defaultFuncMap(author, baseURL, slugifier)
 
 	return &Templates{
-		Page:     template.Must(template.New("").Funcs(fns).ParseFS(templateFS, "base.gohtml", "page.gohtml")),
-		FeedPage: template.Must(template.New("").Funcs(fns).ParseFS(templateFS, "feed.gohtml", "page.gohtml")),
-		List:     template.Must(template.New("").Funcs(fns).ParseFS(templateFS, "base.gohtml", "list.gohtml")),
+		Page: template.Must(
+			template.New("").Funcs(fns).ParseFS(templateFS, "base.gohtml", "page.gohtml"),
+		),
+		FeedPage: template.Must(
+			template.New("").Funcs(fns).ParseFS(templateFS, "feed.gohtml", "page.gohtml"),
+		),
+		List: template.Must(
+			template.New("").Funcs(fns).ParseFS(templateFS, "base.gohtml", "list.gohtml"),
+		),
 	}
 }
 
 // PageLink returns a link for the given page using its slugified title as filename.
 func PageLink(baseURL string, slugifier *slug.Slugifier, page TemplatePage) string {
-	return baseURL + filepath.Join("/", filepath.Dir(page.Path), slugifier.Slugify(page.FM.Title)+".html")
+	return baseURL + filepath.Join(
+		"/",
+		filepath.Dir(page.Path),
+		slugifier.Slugify(page.FM.Title)+".html",
+	)
 }
 
 // AbsLink returns an absolute representation of the given path.
