@@ -86,29 +86,29 @@ func (g *Generator) copyStaticFiles(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (g *Generator) renderListPage(content model.Tree, siteMenu []model.MenuEntry) error {
+func (g *Generator) renderListPage(ctx context.Context, content model.Tree, siteMenu []model.MenuEntry) error {
 	buf := bytes.NewBuffer(make([]byte, 0, 8192))
-	err := g.renderer.List(context.TODO(), buf, content, siteMenu)
+	err := g.renderer.List(ctx, buf, content, siteMenu)
 	if err != nil {
 		return err
 	}
 
-	return g.stor.Store(context.TODO(), filepath.Join(content.Path(), "index.html"), buf)
+	return g.stor.Store(ctx, filepath.Join(content.Path(), "index.html"), buf)
 }
 
-func (g *Generator) renderFeed(content model.Tree) error {
+func (g *Generator) renderFeed(ctx context.Context, content model.Tree) error {
 	if content.Path() == "." {
 		// Ignore root dir.
 		return nil
 	}
 
-	feed, err := g.buildFeed(context.TODO(), content)
+	feed, err := g.buildFeed(ctx, content)
 	if err != nil {
 		return err
 	}
 
 	pr, pw := io.Pipe()
-	eg, ctx := errgroup.WithContext(context.TODO())
+	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		defer pw.Close()
 		return feed.WriteRss(pw)
@@ -240,7 +240,7 @@ func (g *Generator) copyStatic(ctx context.Context, content *model.ContentTree) 
 	return nil
 }
 
-func (g *Generator) traverseTreeForListPages(tree model.Tree, siteMenu []model.MenuEntry) error {
+func (g *Generator) traverseTreeForListPages(ctx context.Context, tree model.Tree, siteMenu []model.MenuEntry) error {
 	content, ok := tree.(*model.ContentTree)
 	if !ok {
 		return nil
@@ -250,7 +250,7 @@ func (g *Generator) traverseTreeForListPages(tree model.Tree, siteMenu []model.M
 	for _, child := range tree.Children() {
 		switch el := child.(type) {
 		case *model.ContentTree:
-			err := g.traverseTreeForListPages(el, siteMenu)
+			err := g.traverseTreeForListPages(ctx, el, siteMenu)
 			if err != nil {
 				return err
 			}
@@ -270,7 +270,7 @@ func (g *Generator) traverseTreeForListPages(tree model.Tree, siteMenu []model.M
 	if containsPages && !containsIndexMD {
 		eg := errgroup.Group{}
 		eg.Go(func() error {
-			err := g.renderFeed(content)
+			err := g.renderFeed(ctx, content)
 			if err != nil {
 				return fmt.Errorf("feed rendering failed: %w", err)
 			}
@@ -278,7 +278,7 @@ func (g *Generator) traverseTreeForListPages(tree model.Tree, siteMenu []model.M
 			return nil
 		})
 		eg.Go(func() error {
-			return g.renderListPage(content, siteMenu)
+			return g.renderListPage(ctx, content, siteMenu)
 		})
 
 		return eg.Wait()
@@ -289,7 +289,7 @@ func (g *Generator) traverseTreeForListPages(tree model.Tree, siteMenu []model.M
 
 func (g *Generator) render(ctx context.Context, content *model.ContentTree) error {
 	err := content.Walk(func(tree model.Tree) error {
-		return g.traverseTreeForListPages(tree, model.Menu(content))
+		return g.traverseTreeForListPages(ctx, tree, model.Menu(content))
 	})
 	if err != nil {
 		return fmt.Errorf("rendering list pages failed: %w", err)
