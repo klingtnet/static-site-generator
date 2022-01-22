@@ -14,12 +14,12 @@ func TestConcurrentMapFS(t *testing.T) {
 	cmfs := NewConcurrentMapFS(fstest.MapFS{
 		"root.txt": &fstest.MapFile{
 			Data:    []byte("root"),
-			Mode:    0400,
+			Mode:    0o400,
 			ModTime: time.Now(),
 		},
 		"dir/file.bin": &fstest.MapFile{
 			Data:    []byte{1, 2, 3, 4},
-			Mode:    0755,
+			Mode:    0o755,
 			ModTime: time.Now(),
 		},
 	})

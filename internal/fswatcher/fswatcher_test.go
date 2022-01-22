@@ -18,7 +18,7 @@ func TestFSWatcher(t *testing.T) {
 	sourceFS := testutils.NewConcurrentMapFS(fstest.MapFS{
 		"index.md": &fstest.MapFile{
 			ModTime: time.Unix(1, 0),
-			Mode:    0600,
+			Mode:    0o600,
 			Data:    []byte("Hello, World!"),
 		},
 	})
@@ -50,7 +50,7 @@ func TestFSWatcher(t *testing.T) {
 	// Check if a change in modification time is detected.
 	sourceFS.Store("index.md", &fstest.MapFile{
 		ModTime: time.Unix(2, 0),
-		Mode:    0600,
+		Mode:    0o600,
 		Data:    []byte("Hello, World!"),
 	})
 	result = <-resultCh
@@ -60,7 +60,7 @@ func TestFSWatcher(t *testing.T) {
 	// Check if a size change is detected.
 	sourceFS.Store("index.md", &fstest.MapFile{
 		ModTime: time.Unix(2, 0),
-		Mode:    0600,
+		Mode:    0o600,
 		Data:    []byte("This has a different size than 'Hello, World!'."),
 	})
 	result = <-resultCh

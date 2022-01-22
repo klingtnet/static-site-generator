@@ -26,9 +26,9 @@ func TestExampleConfig(t *testing.T) {
 func TestConfigValidate(t *testing.T) {
 	tDir := t.TempDir()
 	contentDir := filepath.Join(tDir, "content")
-	require.NoError(t, os.Mkdir(contentDir, 0755))
+	require.NoError(t, os.Mkdir(contentDir, 0o755))
 	outputDir := filepath.Join(tDir, "output")
-	require.NoError(t, os.Mkdir(outputDir, 0755))
+	require.NoError(t, os.Mkdir(outputDir, 0o755))
 
 	tCases := []struct {
 		name   string
