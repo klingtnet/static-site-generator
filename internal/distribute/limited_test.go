@@ -83,6 +83,24 @@ func TestOneToN(t *testing.T) {
 		require.Contains(t, []string{"sourceFn failed", "workerFn failed"}, err.Error())
 	})
 
+	t.Run("context error", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		err := OneToN(
+			ctx,
+			func(ctx context.Context, dataCh chan<- interface{}) error {
+				dataCh <- "concurrency of one is serial"
+				return nil
+			},
+			func(ctx context.Context, data interface{}) error {
+				require.Equal(t, "concurrency of one is serial", data.(string))
+				return nil
+			},
+			1,
+		)
+		require.ErrorIs(t, err, context.Canceled)
+	})
+
 	t.Run("concurrency of one", func(t *testing.T) {
 		err := OneToN(
 			context.Background(),
