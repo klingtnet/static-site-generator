@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/feeds"
 	"github.com/klingtnet/static-site-generator/generator/model"
 	"github.com/klingtnet/static-site-generator/generator/renderer"
+	"github.com/klingtnet/static-site-generator/internal/distribute"
 	"github.com/klingtnet/static-site-generator/slug"
 	"golang.org/x/sync/errgroup"
 )
@@ -54,36 +55,28 @@ func (g *Generator) copyStaticFiles(ctx context.Context) error {
 		return g.stor.Store(ctx, path, src)
 	}
 
-	pathCh := make(chan string, g.concurrency)
-	eg, ctx := errgroup.WithContext(ctx)
-
-	for i := 0; i < g.concurrency; i++ {
-		eg.Go(func() error {
-			for path := range pathCh {
-				err := cp(ctx, path)
+	return distribute.OneToN(
+		ctx,
+		func(ctx context.Context, dataCh chan<- interface{}) error {
+			return fs.WalkDir(g.staticFS, ".", func(path string, d fs.DirEntry, err error) error {
 				if err != nil {
 					return err
 				}
-			}
-			return nil
-		})
-	}
-	eg.Go(func() error {
-		defer close(pathCh)
-		return fs.WalkDir(g.staticFS, ".", func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
 
-			if d.IsDir() {
+				if d.IsDir() {
+					return nil
+				}
+
+				dataCh <- path
 				return nil
-			}
-
-			pathCh <- path
-			return nil
-		})
-	})
-	return eg.Wait()
+			})
+		},
+		func(ctx context.Context, data interface{}) error {
+			path := data.(string)
+			return cp(ctx, path)
+		},
+		g.concurrency,
+	)
 }
 
 func (g *Generator) renderListPage(ctx context.Context, content model.Tree, siteMenu []model.MenuEntry) error {
@@ -128,87 +121,78 @@ func (g *Generator) buildFeed(ctx context.Context, content model.Tree) (*feeds.F
 		Author:  &feeds.Author{Name: g.config.Author},
 		Created: time.Now(),
 	}
+	feedLock := sync.RWMutex{}
 
-	pageCh := make(chan *model.Page, g.concurrency)
-	go func() {
-		defer close(pageCh)
-		for _, child := range content.Children() {
-			page, ok := child.(*model.Page)
-			if ok && !page.Frontmatter().Hidden {
-				pageCh <- page
-			}
-		}
-	}()
-
-	feedItemCh := make(chan *feeds.Item, g.concurrency)
-	egRenderFeedPages, ctx := errgroup.WithContext(ctx)
-	for i := 0; i < g.concurrency; i++ {
-		egRenderFeedPages.Go(func() error { return g.renderFeedPage(ctx, pageCh, feedItemCh) })
+	concurrency := len(content.Children())
+	if g.concurrency < concurrency {
+		concurrency = g.concurrency
 	}
+	err := distribute.OneToN(
+		ctx,
+		func(ctx context.Context, dataCh chan<- interface{}) error {
+			for _, child := range content.Children() {
+				page, ok := child.(*model.Page)
+				if ok && !page.Frontmatter().Hidden {
+					dataCh <- page
+				}
+			}
 
-	wgCollectFeedItems := sync.WaitGroup{}
-	wgCollectFeedItems.Add(1)
-	go func() {
-		defer wgCollectFeedItems.Done()
-		for feedItem := range feedItemCh {
-			feed.Items = append(feed.Items, feedItem)
-		}
-	}()
+			return nil
+		},
+		func(ctx context.Context, data interface{}) error {
+			page := data.(*model.Page)
+			item, err := g.renderFeedPage(ctx, page)
+			if err != nil {
+				return err
+			}
+			feedLock.Lock()
+			feed.Items = append(feed.Items, item)
+			feedLock.Unlock()
 
-	err := egRenderFeedPages.Wait()
-	close(feedItemCh)
+			return nil
+		},
+		concurrency,
+	)
+
+	return feed, err
+}
+
+func (g *Generator) renderFeedPage(ctx context.Context, page *model.Page) (*feeds.Item, error) {
+	content := bytes.NewBuffer(make([]byte, 0, 8192))
+	templatePage := renderer.NewTemplatePage(page)
+	err := g.renderer.FeedPage(ctx, content, templatePage)
 	if err != nil {
 		return nil, err
 	}
 
-	wgCollectFeedItems.Wait()
-
-	return feed, nil
+	return &feeds.Item{
+		Title:       page.Frontmatter().Title,
+		Description: page.Frontmatter().Description,
+		Author:      &feeds.Author{Name: page.Frontmatter().Author},
+		Link:        &feeds.Link{Href: renderer.PageLink(g.config.BaseURL, g.slugifier, templatePage)},
+		Created:     time.Now(),
+		Content:     content.String(),
+	}, nil
 }
 
-func (g *Generator) renderFeedPage(ctx context.Context, pageCh <-chan *model.Page, resultCh chan<- *feeds.Item) error {
-	for page := range pageCh {
-		content := bytes.NewBuffer(nil)
-		templatePage := renderer.NewTemplatePage(page)
-		err := g.renderer.FeedPage(context.TODO(), content, templatePage)
-		if err != nil {
-			return err
-		}
-
-		resultCh <- &feeds.Item{
-			Title:       page.Frontmatter().Title,
-			Description: page.Frontmatter().Description,
-			Author:      &feeds.Author{Name: page.Frontmatter().Author},
-			Link:        &feeds.Link{Href: renderer.PageLink(g.config.BaseURL, g.slugifier, templatePage)},
-			Created:     time.Now(),
-			Content:     content.String(),
-		}
+func (g *Generator) renderPage(ctx context.Context, content model.Tree, siteMenu []model.MenuEntry, page *model.Page) error {
+	var dest string
+	if strings.HasSuffix(page.Path(), "index.md") {
+		dest = filepath.Join(filepath.Dir(page.Path()), "index.html")
+	} else {
+		dest = filepath.Join(filepath.Dir(page.Path()), g.slugifier.Slugify(page.Frontmatter().Title)) + ".html"
 	}
 
-	return nil
-}
-
-func (g *Generator) renderPage(ctx context.Context, content model.Tree, siteMenu []model.MenuEntry, pageCh <-chan *model.Page) error {
-	for page := range pageCh {
-		var dest string
-		if strings.HasSuffix(page.Path(), "index.md") {
-			dest = filepath.Join(filepath.Dir(page.Path()), "index.html")
-		} else {
-			dest = filepath.Join(filepath.Dir(page.Path()), g.slugifier.Slugify(page.Frontmatter().Title)) + ".html"
-		}
-
-		buf := bytes.NewBuffer(make([]byte, 0, 8192))
-		err := g.renderer.Page(ctx, buf, renderer.NewTemplatePage(page), siteMenu)
-		if err != nil {
-			return err
-		}
-
-		err = g.stor.Store(ctx, dest, buf)
-		if err != nil {
-			return err
-		}
+	buf := bytes.NewBuffer(make([]byte, 0, 8192))
+	err := g.renderer.Page(ctx, buf, renderer.NewTemplatePage(page), siteMenu)
+	if err != nil {
+		return err
 	}
 
+	err = g.stor.Store(ctx, dest, buf)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -240,7 +224,7 @@ func (g *Generator) copyStatic(ctx context.Context, content *model.ContentTree) 
 	return nil
 }
 
-func (g *Generator) traverseTreeForListPages(ctx context.Context, tree model.Tree, siteMenu []model.MenuEntry) error {
+func (g *Generator) collectContentDirs(ctx context.Context, tree model.Tree, resultCh chan<- interface{}) error {
 	content, ok := tree.(*model.ContentTree)
 	if !ok {
 		return nil
@@ -250,7 +234,7 @@ func (g *Generator) traverseTreeForListPages(ctx context.Context, tree model.Tre
 	for _, child := range tree.Children() {
 		switch el := child.(type) {
 		case *model.ContentTree:
-			err := g.traverseTreeForListPages(ctx, el, siteMenu)
+			err := g.collectContentDirs(ctx, el, resultCh)
 			if err != nil {
 				return err
 			}
@@ -268,52 +252,66 @@ func (g *Generator) traverseTreeForListPages(ctx context.Context, tree model.Tre
 		}
 	}
 	if containsPages && !containsIndexMD {
-		eg := errgroup.Group{}
-		eg.Go(func() error {
-			err := g.renderFeed(ctx, content)
-			if err != nil {
-				return fmt.Errorf("feed rendering failed: %w", err)
-			}
-
-			return nil
-		})
-		eg.Go(func() error {
-			return g.renderListPage(ctx, content, siteMenu)
-		})
-
-		return eg.Wait()
+		resultCh <- content
 	}
 
 	return nil
 }
 
 func (g *Generator) render(ctx context.Context, content *model.ContentTree) error {
-	err := content.Walk(func(tree model.Tree) error {
-		return g.traverseTreeForListPages(ctx, tree, model.Menu(content))
-	})
-	if err != nil {
-		return fmt.Errorf("rendering list pages failed: %w", err)
-	}
-
-	pageCh := make(chan *model.Page, g.concurrency)
-	go func() {
-		defer close(pageCh)
-		_ = content.Walk(func(tree model.Tree) error {
-			page, ok := tree.(*model.Page)
-			if ok {
-				pageCh <- page
+	err := distribute.OneToN(
+		ctx,
+		func(ctx context.Context, dataCh chan<- interface{}) error {
+			err := content.Walk(func(tree model.Tree) error {
+				return g.collectContentDirs(ctx, tree, dataCh)
+			})
+			if err != nil {
+				return fmt.Errorf("rendering list pages failed: %w", err)
 			}
 
 			return nil
-		})
-	}()
+		},
+		func(ctx context.Context, data interface{}) error {
+			content := data.(*model.ContentTree)
+			eg, ctx := errgroup.WithContext(ctx)
+			eg.Go(func() error {
+				err := g.renderFeed(ctx, content)
+				if err != nil {
+					return fmt.Errorf("feed rendering failed: %w", err)
+				}
 
-	eg, ctx := errgroup.WithContext(ctx)
-	for i := 0; i < g.concurrency; i++ {
-		eg.Go(func() error { return g.renderPage(ctx, content, model.Menu(content), pageCh) })
+				return nil
+			})
+			eg.Go(func() error {
+				return g.renderListPage(ctx, content, model.Menu(content))
+			})
+
+			return eg.Wait()
+		},
+		g.concurrency,
+	)
+	if err != nil {
+		return err
 	}
 
-	return eg.Wait()
+	return distribute.OneToN(
+		ctx,
+		func(ctx context.Context, dataCh chan<- interface{}) error {
+			return content.Walk(func(tree model.Tree) error {
+				page, ok := tree.(*model.Page)
+				if ok {
+					dataCh <- page
+				}
+
+				return nil
+			})
+		},
+		func(ctx context.Context, data interface{}) error {
+			page := data.(*model.Page)
+			return g.renderPage(ctx, content, model.Menu(content), page)
+		},
+		g.concurrency,
+	)
 }
 
 // Run generates the website.
