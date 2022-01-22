@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -eu
+
+# go install mvdan.cc/gofumpt@latest
+gofumpt -l -w .
+
+# go install github.com/segmentio/golines@latest
+golines -w .
