@@ -115,8 +115,12 @@ func BenchmarkGenerator(b *testing.B) {
 	ds := &DiscardStorage{b, sync.RWMutex{}, 0}
 	sl := slug.NewSlugifier('-')
 	md := goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote))
-	templates := renderer.NewTemplates(b.Name(), "https://does.not.matter", sl, DefaultTemplateFS())
-	generator := New(newBenchContentFS(b, 10, 1000), nil, ds, sl, renderer.NewMarkdown(md, templates))
+	config := &Config{
+		Author:  b.Name(),
+		BaseURL: "https://does.not.matter",
+	}
+	templates := renderer.NewTemplates(config.Author, config.BaseURL, sl, DefaultTemplateFS())
+	generator := New(config, newBenchContentFS(b, 10, 1000), nil, ds, sl, renderer.NewMarkdown(md, templates))
 
 	for _, concurrency := range []int{1, runtime.NumCPU() / 2, runtime.NumCPU(), runtime.NumCPU() * 2} {
 		b.Run(fmt.Sprintf("concurrency-%d", concurrency), func(b *testing.B) {
@@ -127,8 +131,8 @@ func BenchmarkGenerator(b *testing.B) {
 				if err != nil {
 					b.Fatal(err.Error())
 				}
-				if ds.calls() != 1066 {
-					b.Fatalf("not enough pages rendered, expected %d but was %d", 1066, ds.calls())
+				if ds.calls() != 1131 {
+					b.Fatalf("not enough pages rendered, expected %d but was %d", 1131, ds.calls())
 				}
 			}
 		})
@@ -149,7 +153,7 @@ func BenchmarkCopyStaticFiles(b *testing.B) {
 	}
 
 	ds := &DiscardStorage{b, sync.RWMutex{}, 0}
-	generator := New(nil, testFS, ds, nil, nil)
+	generator := New(&Config{}, nil, testFS, ds, nil, nil)
 	for _, concurrency := range []int{1, runtime.NumCPU(), runtime.NumCPU() * 2} {
 		b.Run(fmt.Sprintf("concurrency-%d", concurrency), func(b *testing.B) {
 			generator.concurrency = concurrency

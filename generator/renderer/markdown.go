@@ -15,6 +15,7 @@ import (
 
 type Renderer interface {
 	Page(context.Context, io.Writer, TemplatePage, []model.MenuEntry) error
+	FeedPage(context.Context, io.Writer, TemplatePage) error
 	List(context.Context, io.Writer, model.Tree, []model.MenuEntry) error
 }
 
@@ -47,6 +48,23 @@ func (m *Markdown) Page(ctx context.Context, w io.Writer, page TemplatePage, sit
 	}
 
 	return m.templates.Page.ExecuteTemplate(w, "base.gohtml", data)
+}
+
+// FeedPage renders a page for use in a feed.
+func (m *Markdown) FeedPage(ctx context.Context, w io.Writer, page TemplatePage) error {
+	buf := bytes.NewBuffer(nil)
+	err := m.md.Convert(page.Markdown, buf)
+	if err != nil {
+		return err
+	}
+
+	data := TemplateData{
+		page.FM.Title, page.FM.Description,
+		template.HTML(buf.String()),
+		nil,
+	}
+
+	return m.templates.FeedPage.ExecuteTemplate(w, "feed.gohtml", data)
 }
 
 type TemplatePage struct {

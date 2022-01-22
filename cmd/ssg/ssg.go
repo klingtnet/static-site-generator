@@ -95,7 +95,7 @@ func setup(c *cli.Context) (
 	}
 	renderer := renderer.NewMarkdown(goldmark.New(markdownOptions...), templates)
 
-	gen = generator.New(resources.sourceFS, resources.staticFS, storage, slugifier, renderer)
+	gen = generator.New(config, resources.sourceFS, resources.staticFS, storage, slugifier, renderer)
 
 	return
 }

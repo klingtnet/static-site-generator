@@ -46,13 +46,17 @@ func TestGenerator(t *testing.T) {
 	// the generator setup could be moved into a testutil function
 	// with the following signature:
 	// NewTestGenerator(*testing.T, sourceFS, staticFS fs.FS, storage Storage)
+	config := &Config{
+		Author:  "Andreas Linz",
+		BaseURL: "https://klingt.net",
+	}
 	contentFS := testutils.NewTestContentFS(t)
 	memStor := &memoryStorage{t: t, memFS: make(fstest.MapFS)}
 	slugifier := slug.NewSlugifier('-')
-	templates := renderer.NewTemplates("Andreas Linz", "https://klingt.net", slugifier, DefaultTemplateFS())
+	templates := renderer.NewTemplates(config.Author, config.BaseURL, slugifier, DefaultTemplateFS())
 	renderer := renderer.NewMarkdown(goldmark.New(goldmark.WithExtensions(extension.GFM, emoji.Emoji, extension.Footnote)), templates)
 
-	generator := New(contentFS, nil, memStor, slugifier, renderer)
+	generator := New(config, contentFS, nil, memStor, slugifier, renderer)
 	err := generator.Run(context.Background())
 	require.NoError(t, err)
 
@@ -80,6 +84,7 @@ func TestGenerator(t *testing.T) {
 		"index.html",
 		"files/random.txt",
 		"static/base.css",
+		"blog/feed.rss",
 		"blog/index.html",
 		"blog/first-article.html",
 		"blog/second-article.html",

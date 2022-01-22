@@ -6,11 +6,15 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"io"
 	"io/fs"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/gorilla/feeds"
 	"github.com/klingtnet/static-site-generator/generator/model"
 	"github.com/klingtnet/static-site-generator/generator/renderer"
 	"github.com/klingtnet/static-site-generator/slug"
@@ -37,6 +41,7 @@ type Generator struct {
 	stor               Storage
 	slugifier          *slug.Slugifier
 	renderer           renderer.Renderer
+	config             *Config
 }
 
 func (g *Generator) copyStaticFiles(ctx context.Context) error {
@@ -89,6 +94,98 @@ func (g *Generator) renderListPage(content model.Tree, siteMenu []model.MenuEntr
 	}
 
 	return g.stor.Store(context.TODO(), filepath.Join(content.Path(), "index.html"), buf)
+}
+
+func (g *Generator) renderFeed(content model.Tree) error {
+	if content.Path() == "." {
+		// Ignore root dir.
+		return nil
+	}
+
+	feed, err := g.buildFeed(context.TODO(), content)
+	if err != nil {
+		return err
+	}
+
+	pr, pw := io.Pipe()
+	eg, ctx := errgroup.WithContext(context.TODO())
+	eg.Go(func() error {
+		defer pw.Close()
+		return feed.WriteRss(pw)
+	})
+	eg.Go(func() error {
+		defer pr.Close()
+		return g.stor.Store(ctx, filepath.Join(content.Path(), "feed.rss"), pr)
+	})
+
+	return eg.Wait()
+}
+
+func (g *Generator) buildFeed(ctx context.Context, content model.Tree) (*feeds.Feed, error) {
+	feed := &feeds.Feed{
+		Title:   content.Name(),
+		Link:    &feeds.Link{Href: renderer.AbsLink(g.config.BaseURL, content.Path())},
+		Author:  &feeds.Author{Name: g.config.Author},
+		Created: time.Now(),
+	}
+
+	pageCh := make(chan *model.Page, g.concurrency)
+	go func() {
+		defer close(pageCh)
+		for _, child := range content.Children() {
+			page, ok := child.(*model.Page)
+			if ok && !page.Frontmatter().Hidden {
+				pageCh <- page
+			}
+		}
+	}()
+
+	feedItemCh := make(chan *feeds.Item, g.concurrency)
+	egRenderFeedPages, ctx := errgroup.WithContext(ctx)
+	for i := 0; i < g.concurrency; i++ {
+		egRenderFeedPages.Go(func() error { return g.renderFeedPage(ctx, pageCh, feedItemCh) })
+	}
+
+	wgCollectFeedItems := sync.WaitGroup{}
+	wgCollectFeedItems.Add(1)
+	go func() {
+		defer wgCollectFeedItems.Done()
+		for feedItem := range feedItemCh {
+			feed.Items = append(feed.Items, feedItem)
+		}
+	}()
+
+	err := egRenderFeedPages.Wait()
+	close(feedItemCh)
+	if err != nil {
+		return nil, err
+	}
+
+	wgCollectFeedItems.Wait()
+
+	return feed, nil
+}
+
+func (g *Generator) renderFeedPage(ctx context.Context, pageCh <-chan *model.Page, resultCh chan<- *feeds.Item) error {
+	for page := range pageCh {
+		content := bytes.NewBuffer(nil)
+		templatePage := renderer.NewTemplatePage(page)
+		err := g.renderer.FeedPage(context.TODO(), content, templatePage)
+		if err != nil {
+			return err
+		}
+
+		resultCh <- &feeds.Item{
+			Title:       page.Frontmatter().Title,
+			Description: page.Frontmatter().Description,
+			Author:      &feeds.Author{Name: page.Frontmatter().Author},
+			Link:        &feeds.Link{Href: renderer.PageLink(g.config.BaseURL, g.slugifier, templatePage)},
+			Created:     time.Now(),
+			Content:     content.String(),
+		}
+	}
+
+	return nil
 }
 
 func (g *Generator) renderPage(ctx context.Context, content model.Tree, siteMenu []model.MenuEntry, pageCh <-chan *model.Page) error {
@@ -171,7 +268,20 @@ func (g *Generator) traverseTreeForListPages(tree model.Tree, siteMenu []model.M
 		}
 	}
 	if containsPages && !containsIndexMD {
-		return g.renderListPage(content, siteMenu)
+		eg := errgroup.Group{}
+		eg.Go(func() error {
+			err := g.renderFeed(content)
+			if err != nil {
+				return fmt.Errorf("feed rendering failed: %w", err)
+			}
+
+			return nil
+		})
+		eg.Go(func() error {
+			return g.renderListPage(content, siteMenu)
+		})
+
+		return eg.Wait()
 	}
 
 	return nil
@@ -226,12 +336,13 @@ func (g *Generator) Run(ctx context.Context) error {
 }
 
 // New returns a new Generator instance.
-func New(sourceFS, staticFS fs.FS, stor Storage, slugifier *slug.Slugifier, renderer renderer.Renderer) *Generator {
+func New(config *Config, sourceFS, staticFS fs.FS, stor Storage, slugifier *slug.Slugifier, renderer renderer.Renderer) *Generator {
 	if staticFS == nil {
 		staticFS = defaultStaticFS
 	}
 
 	return &Generator{
+		config:      config,
 		concurrency: runtime.NumCPU(),
 		sourceFS:    sourceFS,
 		staticFS:    staticFS,

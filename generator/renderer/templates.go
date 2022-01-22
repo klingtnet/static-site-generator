@@ -13,6 +13,8 @@ import (
 type Templates struct {
 	// Page is a template for simple website pages.
 	Page *template.Template
+	// FeedPage is a template for a page used in a feed.
+	FeedPage *template.Template
 	// List is a template for list pages, e.g. a list of all blog articles.
 	List *template.Template
 }
@@ -24,8 +26,9 @@ func NewTemplates(author, baseURL string, slugifier *slug.Slugifier, templateFS 
 	fns := defaultFuncMap(author, baseURL, slugifier)
 
 	return &Templates{
-		Page: template.Must(template.New("").Funcs(fns).ParseFS(templateFS, "base.gohtml", "page.gohtml")),
-		List: template.Must(template.New("").Funcs(fns).ParseFS(templateFS, "base.gohtml", "list.gohtml")),
+		Page:     template.Must(template.New("").Funcs(fns).ParseFS(templateFS, "base.gohtml", "page.gohtml")),
+		FeedPage: template.Must(template.New("").Funcs(fns).ParseFS(templateFS, "feed.gohtml", "page.gohtml")),
+		List:     template.Must(template.New("").Funcs(fns).ParseFS(templateFS, "base.gohtml", "list.gohtml")),
 	}
 }
 
