@@ -43,6 +43,7 @@ type Generator struct {
 	slugifier          *slug.Slugifier
 	renderer           renderer.Renderer
 	config             *Config
+	bufPool            *sync.Pool
 }
 
 func (g *Generator) copyStaticFiles(ctx context.Context) error {
@@ -84,7 +85,10 @@ func (g *Generator) renderListPage(
 	content model.Tree,
 	siteMenu []model.MenuEntry,
 ) error {
-	buf := bytes.NewBuffer(make([]byte, 0, 8192))
+	buf := g.bufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer g.bufPool.Put(buf)
+
 	err := g.renderer.List(ctx, buf, content, siteMenu)
 	if err != nil {
 		return err
@@ -162,9 +166,12 @@ func (g *Generator) buildFeed(ctx context.Context, content model.Tree) (*feeds.F
 }
 
 func (g *Generator) renderFeedPage(ctx context.Context, page *model.Page) (*feeds.Item, error) {
-	content := bytes.NewBuffer(make([]byte, 0, 8192))
+	buf := g.bufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer g.bufPool.Put(buf)
+
 	templatePage := renderer.NewTemplatePage(page)
-	err := g.renderer.FeedPage(ctx, content, templatePage)
+	err := g.renderer.FeedPage(ctx, buf, templatePage)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +184,7 @@ func (g *Generator) renderFeedPage(ctx context.Context, page *model.Page) (*feed
 			Href: renderer.PageLink(g.config.BaseURL, g.slugifier, templatePage),
 		},
 		Created: time.Now(),
-		Content: content.String(),
+		Content: buf.String(),
 	}, nil
 }
 
@@ -194,7 +201,10 @@ func (g *Generator) renderPage(
 		dest = filepath.Join(filepath.Dir(page.Path()), g.slugifier.Slugify(page.Frontmatter().Title)) + ".html"
 	}
 
-	buf := bytes.NewBuffer(make([]byte, 0, 8192))
+	buf := g.bufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer g.bufPool.Put(buf)
+
 	err := g.renderer.Page(ctx, buf, renderer.NewTemplatePage(page), siteMenu)
 	if err != nil {
 		return err
@@ -368,5 +378,10 @@ func New(
 		stor:        stor,
 		slugifier:   slugifier,
 		renderer:    renderer,
+		bufPool: &sync.Pool{
+			New: func() interface{} {
+				return bytes.NewBuffer(make([]byte, 0, 2<<14))
+			},
+		},
 	}
 }
