@@ -284,6 +284,8 @@ func (g *Generator) collectContentDirs(
 }
 
 func (g *Generator) render(ctx context.Context, content *model.ContentTree) error {
+	rootMenu := model.Menu(content)
+
 	err := distribute.OneToN(
 		ctx,
 		func(ctx context.Context, dataCh chan<- interface{}) error {
@@ -308,7 +310,7 @@ func (g *Generator) render(ctx context.Context, content *model.ContentTree) erro
 				return nil
 			})
 			eg.Go(func() error {
-				return g.renderListPage(ctx, content, model.Menu(content))
+				return g.renderListPage(ctx, content, rootMenu)
 			})
 
 			return eg.Wait()
@@ -333,7 +335,7 @@ func (g *Generator) render(ctx context.Context, content *model.ContentTree) erro
 		},
 		func(ctx context.Context, data interface{}) error {
 			page := data.(*model.Page)
-			return g.renderPage(ctx, content, model.Menu(content), page)
+			return g.renderPage(ctx, content, rootMenu, page)
 		},
 		g.concurrency,
 	)
