@@ -6,10 +6,10 @@ import (
 	"html/template"
 	"io"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/klingtnet/static-site-generator/generator/model"
+	"github.com/klingtnet/static-site-generator/internal"
 	"github.com/yuin/goldmark"
 )
 
@@ -111,7 +111,7 @@ func (m *Markdown) List(
 	})
 
 	data := TemplateData{
-		strings.Title(content.Name()), "List of " + content.Name(),
+		internal.EnglishTitleCaser.String(content.Name()), "List of " + content.Name(),
 		struct {
 			Pages []TemplatePage
 			Dir   string
