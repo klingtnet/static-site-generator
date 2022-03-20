@@ -111,7 +111,7 @@ func (m *Markdown) List(
 	})
 
 	data := TemplateData{
-		internal.EnglishTitleCaser.String(content.Name()), "List of " + content.Name(),
+		internal.TitleCase(content.Name()), "List of " + content.Name(),
 		struct {
 			Pages []TemplatePage
 			Dir   string

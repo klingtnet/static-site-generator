@@ -1,17 +1,29 @@
 package internal
 
 import (
+	"sync"
+
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
 
 // Utils below are a code smell and should not exist.
 
-// EnglishTitleCaser implements unicode aware title casing for english strings.
-// This function should be used instead of strings.Title which is deprecated and not unicode aware.
+var caserPool = sync.Pool{
+	New: func() any {
+		return cases.Title(language.English)
+	},
+}
+
+// TitleCase returns string s in title-case.  For now only english strings are supported.
 //
-// Note that this caser is just a workaround to make the linter happy.  I should
+// Note that this is just a workaround to make the linter happy.  I should
 // find a better solution for this, especially one that allows to select different
 // title casing based on the language.  For now I only plan to publish english content, but
 // this might change.
-var EnglishTitleCaser = cases.Title(language.English)
+func TitleCase(s string) string {
+	caser := caserPool.Get().(cases.Caser)
+	defer caserPool.Put(caser)
+
+	return caser.String(s)
+}

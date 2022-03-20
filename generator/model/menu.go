@@ -37,7 +37,7 @@ func Menu(tree Tree) []MenuEntry {
 		switch el := child.(type) {
 		case *ContentTree:
 			if containsPages(el) {
-				menu = append(menu, MenuEntry{Title: internal.EnglishTitleCaser.String(el.Name()), Path: el.Path(), IsDir: true})
+				menu = append(menu, MenuEntry{Title: internal.TitleCase(el.Name()), Path: el.Path(), IsDir: true})
 			}
 		case *Page:
 			if el.fm.Hidden {
