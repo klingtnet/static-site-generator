@@ -11,7 +11,8 @@ import (
 
 var caserPool = sync.Pool{
 	New: func() any {
-		return cases.Title(language.English)
+		caser := cases.Title(language.English)
+		return &caser
 	},
 }
 
@@ -22,7 +23,7 @@ var caserPool = sync.Pool{
 // title casing based on the language.  For now I only plan to publish english content, but
 // this might change.
 func TitleCase(s string) string {
-	caser := caserPool.Get().(cases.Caser)
+	caser := caserPool.Get().(*cases.Caser)
 	defer caserPool.Put(caser)
 
 	return caser.String(s)
