@@ -77,26 +77,19 @@ func newWithParent(
 				return nil, err
 			}
 			tree.children = append(tree.children, subTree)
-
-			continue
-		}
-		fullPath := path.Join(tree.fullPath, entry.Name())
-
-		if path.Ext(entry.Name()) == ".md" {
+		} else if path.Ext(entry.Name()) == ".md" {
 			page, err := readPage(ctx, contentFS, entry.Name())
 			if err != nil {
 				return nil, err
 			}
-			page.fullPath = fullPath
+			page.fullPath = path.Join(tree.fullPath, entry.Name())
 			tree.children = append(tree.children, page)
-
-			continue
+		} else {
+			tree.children = append(tree.children, &File{
+				name:     entry.Name(),
+				fullPath: path.Join(tree.fullPath, entry.Name()),
+			})
 		}
-
-		tree.children = append(tree.children, &File{
-			name:     entry.Name(),
-			fullPath: fullPath,
-		})
 	}
 
 	return tree, nil
