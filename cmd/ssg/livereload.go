@@ -45,9 +45,13 @@ func liveReload(c *cli.Context) error {
 				return err
 			}
 
+			// Build only once, even if more than one resource has changed.
 			hasChanged = hasChanged || result.HasChanged
 		}
 
+		// Note that watchers begin with an empty state, which means
+		// that in the second run they will always report that something has changed.
+		// This is intended, since we want the generator to run at least once after start.
 		if hasChanged {
 			log.Println("something has changed, rebuilding...")
 
