@@ -31,8 +31,7 @@ func liveReload(c *cli.Context) error {
 		for {
 			err = runServer(c.String("host"), c.Int("port"), config.OutputDir)
 			if err != nil {
-				log.Printf("server crashed: %s", err.Error())
-				panic("exiting")
+				log.Fatalf("server crashed: %s", err.Error())
 			}
 		}
 	}()
