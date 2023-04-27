@@ -9,24 +9,24 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Install Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v4
       with:
         go-version: ${{ matrix.go-version }}
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Test
       run: go test -race -v ./...
     - name: Benchmark
       run: go test -bench=Bench ./...
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v2
+      uses: golangci/golangci-lint-action@v3
     - name: Upload assets
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ssg
         path: dist/*
   release:
-    runs-on: 'ubuntu-latest'
+    runs-on: "ubuntu-latest"
     steps:
     - name: Install Go
       uses: actions/setup-go@v2
